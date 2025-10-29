@@ -5,6 +5,7 @@ from concordia.typing.entity import DEFAULT_ACTION_SPEC
 from typing import Any
 from concordia_components.type_aliases import Thread
 import numpy as np
+from tqdm import tqdm
 
 class SimEngine(engine_lib.Engine):
     """Engine interface."""
@@ -22,7 +23,7 @@ class SimEngine(engine_lib.Engine):
         """Make an observation for an entity."""
         
         # Select a random thread as observation
-        if np.random.rand() < 0.3 and len(self._threads) < 5:
+        if np.random.rand() < 0.3:
             new_thread = Thread(id=len(self._threads), content=[])
             self._threads.append(new_thread)
             entity.observe([new_thread])
@@ -30,7 +31,18 @@ class SimEngine(engine_lib.Engine):
 
         if not self._threads:
             self._threads.append(Thread(id=0, content=[]))
-        random_thread = np.random.choice(self._threads)
+
+        # Calculate weights inversely proportional to thread length
+        thread_lengths = np.array([len(thread.content) for thread in self._threads])
+        # Add 1 to avoid division by zero and ensure non-zero weights
+        weights = 1.0 / (thread_lengths + 1)
+        # Zero all weights except for the last 5 threads to focus on recent activity
+        if len(weights) > 5:
+            weights[:-5] = 0
+        # Normalize weights to sum to 1
+        weights = weights / weights.sum()
+        
+        random_thread = np.random.choice(self._threads, p=weights)
         entity.observe([random_thread])
         return random_thread
 
@@ -82,16 +94,18 @@ class SimEngine(engine_lib.Engine):
 
         steps = 0
         game_master = game_masters[0]
-        while not self.terminate(game_master) and steps < max_steps:
-            if verbose:
-                print(f"Step {steps}")
-            acting_entity, action_spec = self.next_acting(
-                game_master, entities)
-            observation = self.make_observation(game_master, acting_entity)
-            action = acting_entity.act(action_spec)
-            observation.content.append({'role': acting_entity.name, 'content': action})
-            self.resolve(game_master, action)
-            game_master = self.next_game_master(game_master, game_masters)
-            steps += 1
+        with tqdm(total=max_steps, disable=not verbose, desc="Game Steps") as pbar:
+            while not self.terminate(game_master) and steps < max_steps:
+                if verbose:
+                    print(f"Step {steps}")
+                acting_entity, action_spec = self.next_acting(
+                    game_master, entities)
+                observation = self.make_observation(game_master, acting_entity)
+                action = acting_entity.act(action_spec)
+                observation.content.append({'role': acting_entity.name, 'content': action})
+                self.resolve(game_master, action)
+                game_master = self.next_game_master(game_master, game_masters)
+                steps += 1
+                pbar.update(1)
 
         return

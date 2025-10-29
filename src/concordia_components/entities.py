@@ -33,6 +33,7 @@ class User(entity.EntityWithLogging):
         self._name = name
         self._context = context
         self._logs = logs if logs is not None else {}
+        self._max_context_length = 16384
 
     @override
     @functools.cached_property
@@ -65,6 +66,11 @@ class User(entity.EntityWithLogging):
         The entity's intended action.
         """
         self._context += f"<|im_start|>assistant\n"
+        if len(self._context) > self._max_context_length:
+            # Trim the context to fit within the maximum length
+            # Don't trim exactly to max length to allow prefix caching to work
+            # better
+            self._context = self._context[-self._max_context_length*2//3:]
         response = self._model.sample_text(prompt=self._context)
         self._context += f"{response}<|im_end|>\n"
         return response
