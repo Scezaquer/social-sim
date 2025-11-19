@@ -84,6 +84,7 @@ class User(entity.EntityWithLogging):
         """
         for thread in observation:
             self._context += "### New Thread ###\n"
+            self._context += self._format_message("system", f"You are a user on social media, your name is {self._name}. Write a new post for a new conversation thread.")
             self._context += self._format_thread(thread)
 
     @override
