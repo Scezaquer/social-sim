@@ -1,24 +1,31 @@
 import time
+import argparse
 from concordia.language_model.vllm_model import VLLMLanguageModel, VLLMLora
+from concordia.language_model.transformers_model import TransformersLanguageModel, TransformersLora
 from concordia.language_model.no_language_model import NoLanguageModel
 from concordia_components.simulation import SocialMediaSim
 from concordia_components.entities import User
 import numpy as np
 import names
 
-NUM_ENTITIES = 25
+parser = argparse.ArgumentParser()
+parser.add_argument("--start_time", type=float, help="Start time of the job")
+parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
+args = parser.parse_args()
+
+NUM_ENTITIES = 1_000_000
 VLLM_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 PREFIX_CACHING = False
 
 # model = NoLanguageModel()
 print(
     f"Initializing vLLM model: {VLLM_MODEL_NAME} (PREFIX_CACHING={PREFIX_CACHING})")
-base_model = VLLMLanguageModel(
+base_model = TransformersLanguageModel(
     model_name=VLLM_MODEL_NAME,
     # Additional vLLM parameters can be passed as needed
-    enable_lora=True,
-    max_lora_rank=64,
-    enable_prefix_caching=PREFIX_CACHING,
+    # enable_lora=True,
+    # max_lora_rank=64,
+    # enable_prefix_caching=PREFIX_CACHING,
     # max_num_batched_tokens=8192,
 )
 
@@ -32,9 +39,9 @@ proportions = proportions / proportions.sum()
 models = []
 
 for i in range(25):
-    lora_path = f"/home/s4yor1/scratch/Qwen/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+    lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
     print(f"Loading LoRA model from: {lora_path}")
-    model_i = VLLMLora(
+    model_i = TransformersLora(
         model_name=VLLM_MODEL_NAME,
         lora_path=lora_path,
         vllm_language_model=base_model,
@@ -77,8 +84,11 @@ runnable_simulation = SocialMediaSim(
     entities=entities
 )
 
+# Adjust duration to stop 5 minutes early
+effective_duration = args.duration - 300 if args.duration else None
+
 start = time.perf_counter()
-results_log = runnable_simulation.play(max_steps=200)
+results_log = runnable_simulation.play(max_steps=1000000, start_time=args.start_time, duration=effective_duration)
 end = time.perf_counter()
 print(f"Simulation completed in {end - start:.2f} seconds.")
 

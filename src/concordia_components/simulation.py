@@ -77,12 +77,16 @@ class SocialMediaSim(simulation_lib.Simulation):
         self,
         premise: str | None = None,
         max_steps: int | None = None,
+        start_time: float | None = None,
+        duration: float | None = None,
     ) -> list[Mapping[str, Any]]:
         """Run the simulation.
 
         Args:
         premise: A string to use as the initial premise of the simulation.
         max_steps: The maximum number of steps to run the simulation for.
+        start_time: The start time of the simulation (unix timestamp).
+        duration: The duration of the simulation in seconds.
 
         Returns:
         html_results_log: browseable log of the simulation in HTML format
@@ -96,6 +100,8 @@ class SocialMediaSim(simulation_lib.Simulation):
             verbose=True,
             log=self._raw_log,
             checkpoint_callback=None,
+            start_time=start_time,
+            duration=duration,
         )
 
         return copy.deepcopy(self._raw_log)
