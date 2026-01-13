@@ -8,8 +8,19 @@ class ActionClassifier:
     def __init__(self, model_path, device="cuda"):
         self.device = device
         self.model_path = model_path
-        # Define the labels explicitly as per standard social media actions
-        self.labels = ["Retweet", "Reply", "Like", "Quote", "Ignore"]
+        # The full list of labels the BERT classifier was trained on
+        self.raw_labels = [
+            "like", "unlike", "repost", "unrepost", "follow", "unfollow",
+            "block", "unblock", "post_update", "post_delete", "quote", "post", "reply"
+        ]
+        
+        # Mapping to the actions supported by our simulation engine
+        self.action_mapping = {
+            "like": "Like",
+            "repost": "Repost",
+            "quote": "Quote",
+            "reply": "Reply"
+        }
         
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -27,7 +38,7 @@ class ActionClassifier:
         """
         if self.model is None:
             # Dummy fallback if model fails to load (for testing/safety)
-            return np.random.choice(self.labels, size=len(tweets))
+            return [np.random.choice(["Like", "Repost", "Reply", "Quote", "Ignore"]) for _ in range(len(tweets))]
 
         inputs = self.tokenizer(tweets, return_tensors="pt", padding=True, truncation=True, max_length=128)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
@@ -36,4 +47,11 @@ class ActionClassifier:
             outputs = self.model(**inputs)
             predictions = torch.argmax(outputs.logits, dim=-1)
         
-        return [self.labels[p.item()] for p in predictions]
+        # Map raw BERT labels to engine actions, default to "Ignore"
+        results = []
+        for p in predictions:
+            raw_label = self.raw_labels[p.item()]
+            mapped_action = self.action_mapping.get(raw_label, "Ignore")
+            results.append(mapped_action)
+            
+        return results

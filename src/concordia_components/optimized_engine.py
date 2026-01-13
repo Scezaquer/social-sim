@@ -207,13 +207,13 @@ class OptimizedSimEngine(engine_lib.Engine):
                             # Limit: one action per agent per tick to avoid spam?
                             break 
                             
-                        elif action == "Retweet":
+                        elif action == "Repost":
                             # Immediate propagation
-                             self.metrics.log_event(current_step, agent.name, "Retweet", "", source_tweet_id=target_tweet['id'])
+                             self.metrics.log_event(current_step, agent.name, "Repost", "", source_tweet_id=target_tweet['id'])
                              # Add to MY feed followers
-                             # Retweet logic: It appears on my profile. 
+                             # Repost logic: It appears on my profile. 
                              # My followers see it.
-                             # Create a "Retweet" object? Or just reference?
+                             # Create a "Repost" object? Or just reference?
                              # Usually just reference.
                              rt_id = f"rt_{current_step}_{idx}_{target_tweet['id']}"
                              self.tweets[rt_id] = {
