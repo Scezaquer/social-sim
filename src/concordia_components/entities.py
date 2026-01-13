@@ -7,6 +7,51 @@ from concordia.typing.entity import ActionSpec, DEFAULT_ACTION_SPEC
 from concordia.language_model.language_model import LanguageModel
 from concordia_components.type_aliases import Thread
 
+class NewsSource(entity.EntityWithLogging):
+    """A news source that posts messages from a feed."""
+
+    def __init__(self,
+                 name: str,
+                 news_feed: list[dict[str, str]],
+                 logs: dict[str, Any] = None
+                 ):
+        self._name = name
+        self._news_feed = news_feed
+        self._current_index = 0
+        self._logs = logs if logs is not None else {}
+
+    @override
+    @functools.cached_property
+    def name(self) -> str:
+        """The name of the entity."""
+        return self._name
+
+    @override
+    def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
+        """Returns the next news item."""
+        if self._current_index >= len(self._news_feed):
+            return ""
+        
+        item = self._news_feed[self._current_index]
+        self._current_index += 1
+        
+        news = item.get('message', '')
+        return news
+
+    @override
+    def observe(self, thread: Thread) -> None:
+        """News source ignores observations."""
+        pass
+
+    @override
+    def get_last_log(self) -> dict[str, Any]:
+        """Returns debugging information."""
+        return self._logs
+    
+    def has_news(self) -> bool:
+        """Check if there are more news items."""
+        return self._current_index < len(self._news_feed)
+
 class User(entity.EntityWithLogging):
     """Base class for users.
 
@@ -71,7 +116,7 @@ class User(entity.EntityWithLogging):
             # Don't trim exactly to max length to allow prefix caching to work
             # better
             self._context = self._context[-self._max_context_length*2//3:]
-        response = self._model.sample_text(prompt=self._context)
+        response = self._model.sample_text(prompt=self._context, max_tokens=200)
         self._context += f"{response}<|im_end|>\n"
         return response
 

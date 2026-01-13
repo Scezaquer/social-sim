@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 from concordia.typing.entity import DEFAULT_ACTION_SPEC
 from typing import Any
 from concordia_components.type_aliases import Thread
+from concordia_components.entities import NewsSource
 import numpy as np
 from tqdm import tqdm
 import networkx as nx
@@ -27,16 +28,35 @@ class SimEngine(engine_lib.Engine):
         entity_names = [e.name for e in entities]
         self._name_to_idx = {name: i for i, name in enumerate(entity_names)}
         
+        # Identify NewsSource
+        news_source_indices = [i for i, e in enumerate(entities) if isinstance(e, NewsSource)]
+
         # Power-law activity distribution
         ranks = np.arange(1, n_entities + 1)
-        activity_weights = 1.0 / (ranks ** 0.4) # Zipf's law
+        activity_weights = 1.0 / (ranks ** 0.5) # Zipf's law
         activity_weights /= activity_weights.sum()
-        np.random.shuffle(activity_weights)
-        self._entity_activity_probs = dict(zip(entity_names, activity_weights))
+        
+        # Assign highest weights to NewsSource
+        activity_weights = np.sort(activity_weights)[::-1]
+        final_weights = np.zeros(n_entities)
+        
+        for i, idx in enumerate(news_source_indices):
+            if i < len(activity_weights):
+                final_weights[idx] = activity_weights[i]
+        
+        remaining_indices = [i for i in range(n_entities) if i not in news_source_indices]
+        remaining_weights = activity_weights[len(news_source_indices):]
+        np.random.shuffle(remaining_weights)
+        
+        for i, idx in enumerate(remaining_indices):
+            if i < len(remaining_weights):
+                final_weights[idx] = remaining_weights[i]
+
+        self._entity_activity_probs = dict(zip(entity_names, final_weights))
         
         # Cache for next_acting efficiency
         self._acting_entities = list(entities)
-        self._acting_probs = activity_weights
+        self._acting_probs = final_weights
         
         # Social Graph using NetworkX
         # Scale-free graph for realistic social media topology (hubs/poles)
@@ -46,6 +66,12 @@ class SimEngine(engine_lib.Engine):
         for u, v in G.edges():
             if u != v and u < n_entities and v < n_entities:
                 self._social_graph[u].add(v)
+        
+        # Force many users to follow NewsSource
+        for ns_idx in news_source_indices:
+            for i in range(n_entities):
+                if i != ns_idx and np.random.rand() < 0.8:
+                    self._social_graph[i].add(ns_idx)
         
         # Clear G to free memory
         del G
@@ -58,6 +84,12 @@ class SimEngine(engine_lib.Engine):
     ) -> Thread:
         """Make an observation for an entity."""
         
+        if make_new_thread and isinstance(entity, NewsSource):
+            new_thread = Thread(id=len(self._threads), content=[])
+            self._threads.append(new_thread)
+            entity.observe(new_thread)
+            return new_thread
+
         if make_new_thread and np.random.rand() < 0.3:
             new_thread = Thread(id=len(self._threads), content=[])
             self._threads.append(new_thread)
@@ -73,10 +105,10 @@ class SimEngine(engine_lib.Engine):
         # Only consider the last 200 threads for efficiency
         relevant_threads = self._threads[-200:]
 
-        # Calculate weights inversely proportional to thread length
+        # Calculate weights proportional to thread length
         thread_lengths = np.array([len(thread.content) for thread in relevant_threads])
         # Add 1 to avoid division by zero and ensure non-zero weights
-        weights = 1.0 / (thread_lengths + 1)
+        weights = float(thread_lengths)
 
         # Prevent self-replies
         for i, thread in enumerate(relevant_threads):
@@ -104,13 +136,13 @@ class SimEngine(engine_lib.Engine):
             
             # Participation boost
             if entity_idx in participants_indices:
-                age = 20 - i # Age relative to the most recent thread
+                age = len(relevant_threads) - i # Age relative to the most recent thread
                 boosts[i] *= (1.0 + (20.0 / age))
         
         weights *= boosts
 
         # Normalize weights to sum to 1
-        weights.clip(min=0)
+        weights = weights.clip(min=0)
         if weights.sum() > 0:
             weights = weights / weights.sum()
         elif make_new_thread:
@@ -138,9 +170,25 @@ class SimEngine(engine_lib.Engine):
             self._initialize_social_context(entities)
 
         # Use cached probabilities for efficiency
-        idx = np.random.choice(len(self._acting_entities), p=self._acting_probs)
-        acting_entity = self._acting_entities[idx]
-        return acting_entity, DEFAULT_ACTION_SPEC
+        for _ in range(100):
+            idx = np.random.choice(len(self._acting_entities), p=self._acting_probs)
+            acting_entity = self._acting_entities[idx]
+            
+            if isinstance(acting_entity, NewsSource) and not acting_entity.has_news():
+                continue
+            
+            return acting_entity, DEFAULT_ACTION_SPEC
+            
+        # Fallback: pick a non-NewsSource entity if possible
+        non_news_indices = [i for i, e in enumerate(self._acting_entities) if not isinstance(e, NewsSource)]
+        if non_news_indices:
+             probs = self._acting_probs[non_news_indices]
+             if probs.sum() > 0:
+                 probs /= probs.sum()
+                 idx = np.random.choice(len(non_news_indices), p=probs)
+                 return self._acting_entities[non_news_indices[idx]], DEFAULT_ACTION_SPEC
+        
+        return self._acting_entities[0], DEFAULT_ACTION_SPEC
 
     def resolve(
         self,
