@@ -19,7 +19,13 @@ def get_unique_name(used_names):
             used_names.add(name)
             return name
 
+import os
+from concordia_components.optimized_engine import OptimizedSimEngine
+
 if __name__ == "__main__":
+    # Fix paths to be workspace relative
+    WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--start_time", type=float, help="Start time of the job")
     parser.add_argument("--loras_path", type=str, help="Path to the LoRA models directory")
@@ -81,20 +87,20 @@ if __name__ == "__main__":
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
-        user = User(name=name, model=model)
+        user = User(name=name, model=model, model_id=model_id)
         entities.append(user)
 
-    with open('/home/s4yor1/social-sim/maduro_tweets.json', 'r') as f:
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
         news_feed = json.load(f)
     news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     entities.append(news_entity)
 
-    with open('/home/s4yor1/social-sim/maduro_tweets2.json', 'r') as f:
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
         news_feed2 = json.load(f)
     news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
     entities.append(news_entity2)
 
-    with open('/home/s4yor1/social-sim/maduro_tweets3.json', 'r') as f:
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
         news_feed3 = json.load(f)
     news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
     entities.append(news_entity3)
@@ -103,11 +109,18 @@ if __name__ == "__main__":
     for model_name, count in model_counts.items():
         print(f"{model_name}: {count} entities")
 
+    # Initialize Optimized Engine
+    classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
+    print(f"Using classifier template: {classifier_template}")
+    
+    sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
+
     runnable_simulation = SocialMediaSim(
         config=config,
         model=base_model,
         embedder=lambda x: np.ones(3),
-        entities=entities
+        entities=entities,
+        engine=sim_engine
     )
 
     # Adjust duration to stop 5 minutes early

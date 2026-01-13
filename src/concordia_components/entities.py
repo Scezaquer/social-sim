@@ -70,21 +70,30 @@ class User(entity.EntityWithLogging):
     def __init__(self,
                  model: LanguageModel,
                  name: str,
+                 model_id: int = 0,
                  context: str = "",
+                 action_classifier = None,
                  logs: dict[str, Any] = None
                  ):
         """Initialize the user."""
         self._model = model
         self._name = name
+        self._model_id = model_id
         self._context = context
+        self._action_classifier = action_classifier
         self._logs = logs if logs is not None else {}
         self._max_context_length = 16384
+        self._pending_prompt = None
 
     @override
     @functools.cached_property
     def name(self) -> str:
         """The name of the entity."""
         return self._name
+
+    @property
+    def model_id(self) -> int:
+        return self._model_id
 
     def _format_message(self, role: str, message: str) -> str:
         """Format a message for the user."""
@@ -97,28 +106,24 @@ class User(entity.EntityWithLogging):
             formatted_thread += self._format_message(message['role'], message['content'])
         return formatted_thread
 
-    @override
-    def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
-        """Returns the entity's intended action given the action spec.
-
-        Args:
-        action_spec: The specification of the action that the entity is queried
-            for. This might be a free-form action, a multiple choice action, or
-            a float action. The action will always be a string, but it should be
-            compliant with the specification.
-
-        Returns:
-        The entity's intended action.
-        """
+    def get_prompt(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
+        """Constructs the prompt but does not sample."""
         self._context += f"<|im_start|>assistant\n"
         if len(self._context) > self._max_context_length:
-            # Trim the context to fit within the maximum length
-            # Don't trim exactly to max length to allow prefix caching to work
-            # better
             self._context = self._context[-self._max_context_length*2//3:]
-        response = self._model.sample_text(prompt=self._context, max_tokens=200)
+        return self._context
+
+    def complete_action(self, response: str) -> str:
+        """Completes the action with the generated response."""
         self._context += f"{response}<|im_end|>\n"
         return response
+
+    @override
+    def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
+        """Returns the entity's intended action given the action spec."""
+        prompt = self.get_prompt(action_spec)
+        response = self._model.sample_text(prompt=prompt, max_tokens=200)
+        return self.complete_action(response)
 
     @override
     def observe(self, thread: Thread) -> None:
