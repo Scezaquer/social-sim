@@ -110,6 +110,21 @@ class OptimizedSimEngine(engine_lib.Engine):
             for v in self.social_graph[u]:
                 self.followers[v].add(u)
 
+    def make_observation(self, game_master, entity, make_new_thread=True):
+        return None
+
+    def next_acting(self, game_master, entities):
+        return None, None
+
+    def resolve(self, game_master, event):
+        return None
+
+    def terminate(self, game_master):
+        return False
+
+    def next_game_master(self, game_master, game_masters):
+        return game_master
+
     def run_loop(
         self,
         game_masters,
