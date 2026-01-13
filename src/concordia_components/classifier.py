@@ -22,14 +22,14 @@ class ActionClassifier:
             "reply": "Reply"
         }
         
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-            self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
-            self.model.to(self.device)
-            self.model.eval()
-        except Exception as e:
-            print(f"Warning: Could not load BERT model from {model_path}. Using dummy classifier. Error: {e}")
-            self.model = None
+        # try:
+        #     self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        #     self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        #     self.model.to(self.device)
+        #     self.model.eval()
+        # except Exception as e:
+        print(f"Warning: Could not load BERT model from {model_path}. Using dummy classifier. Error: {e}")
+        self.model = None
 
     def predict_batch(self, tweets: list[str]) -> list[str]:
         """
