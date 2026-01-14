@@ -6,6 +6,7 @@ from concordia.language_model.transformers_model import TransformersLanguageMode
 from concordia.language_model.no_language_model import NoLanguageModel
 from concordia_components.simulation import SocialMediaSim
 from concordia_components.entities import User, NewsSource
+from concordia_components.engile import SimEngine
 import numpy as np
 import torch
 import transformers
@@ -113,7 +114,8 @@ if __name__ == "__main__":
     classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
     print(f"Using classifier template: {classifier_template}")
     
-    sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
+    # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
+    sim_engine = SimEngine()
 
     runnable_simulation = SocialMediaSim(
         config=config,
