@@ -28,6 +28,7 @@ class ActionClassifier:
         #     self.model.to(self.device)
         #     self.model.eval()
         # except Exception as e:
+        e = Exception("Model loading skipped for this example.")
         print(f"Warning: Could not load BERT model from {model_path}. Using dummy classifier. Error: {e}")
         self.model = None
 
