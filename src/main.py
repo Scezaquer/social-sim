@@ -6,7 +6,7 @@ from concordia.language_model.transformers_model import TransformersLanguageMode
 from concordia.language_model.no_language_model import NoLanguageModel
 from concordia_components.simulation import SocialMediaSim
 from concordia_components.entities import User, NewsSource
-from concordia_components.engile import SimEngine
+from concordia_components.engine import SimEngine
 import numpy as np
 import torch
 import transformers
