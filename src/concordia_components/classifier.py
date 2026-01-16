@@ -3,6 +3,7 @@ import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import numpy as np
+from concordia.language_model.language_model import LanguageModel
 
 class ActionClassifier:
     def __init__(self, model_path, device="cuda"):
@@ -54,5 +55,36 @@ class ActionClassifier:
             raw_label = self.raw_labels[p.item()]
             mapped_action = self.action_mapping.get(raw_label, "Ignore")
             results.append(mapped_action)
+            
+        return results
+
+class MinitaurClassifier:
+    def __init__(self, model: LanguageModel):
+        self.model = model
+        self.action_keys = {
+            "A": "Like",
+            "B": "Repost",
+            "C": "Quote",
+            "D": "Reply",
+            "E": "Ignore"
+        }
+
+    def predict_batch(self, tweets: list[str]) -> list[str]:
+        results = []
+        choices = ["A", "B", "C", "D", "E"]
+        for tweet in tweets:
+            prompt = (
+                "You will be presented with a tweet and 5 possible actions.\n"
+                "Please indicate which action you would like to take specific to the tweet by pressing the corresponding key.\n\n"
+                f"Tweet: {tweet}\n"
+                "A: Like, B: Repost, C: Quote, D: Reply, E: Ignore. You press <<"
+            )
+            
+            # Use sample_choice to pick the most likely completion
+            idx, response, _ = self.model.sample_choice(prompt=prompt, responses=choices)
+            
+            # The response is e.g. "A". The key is response[0]
+            key = response[0]
+            results.append(self.action_keys.get(key, "Ignore"))
             
         return results

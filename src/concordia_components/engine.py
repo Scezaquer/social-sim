@@ -106,9 +106,9 @@ class SimEngine(engine_lib.Engine):
         relevant_threads = self._threads[-200:]
 
         # Calculate weights proportional to thread length
-        thread_lengths = np.array([len(thread.content) for thread in relevant_threads])
+        thread_lengths = np.array([float(len(thread.content)) for thread in relevant_threads])
         # Add 1 to avoid division by zero and ensure non-zero weights
-        weights = float(thread_lengths)
+        weights = thread_lengths
 
         # Prevent self-replies
         for i, thread in enumerate(relevant_threads):

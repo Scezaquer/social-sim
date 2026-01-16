@@ -1,7 +1,7 @@
 import time
 import datetime
 import argparse
-from concordia.language_model.vllm_model import VLLMLanguageModel, VLLMLora
+from concordia_components.unsloth_model import UnslothLanguageModel, UnslothLora
 from concordia.language_model.transformers_model import TransformersLanguageModel, TransformersLora
 from concordia.language_model.no_language_model import NoLanguageModel
 from concordia_components.simulation import SocialMediaSim
@@ -12,7 +12,6 @@ import torch
 import transformers
 import names
 import json
-from unsloth import FastLanguageModel
 
 def get_unique_name(used_names):
     while True:
@@ -46,14 +45,10 @@ if __name__ == "__main__":
 
     # model = NoLanguageModel()
     print(
-        f"Initializing vLLM model: {VLLM_MODEL_NAME} (PREFIX_CACHING={PREFIX_CACHING})")
-    base_model = VLLMLanguageModel(
+        f"Initializing Unsloth model: {VLLM_MODEL_NAME}")
+    base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
-        # Additional vLLM parameters can be passed as needed
-        enable_lora=True,
-        max_lora_rank=64,
-        enable_prefix_caching=PREFIX_CACHING,
-        # max_num_batched_tokens=8192,
+        load_in_4bit=True,
     )
 
     # Number of total actions from each cluster in the training data
@@ -69,10 +64,10 @@ if __name__ == "__main__":
         lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
         # lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
         print(f"Loading LoRA model from: {lora_path}")
-        model_i = VLLMLora(
+        model_i = UnslothLora(
             model_name=VLLM_MODEL_NAME,
             lora_path=lora_path,
-            vllm_language_model=base_model,
+            unsloth_language_model=base_model,
         )
         models.append(model_i)
         print(f"LoRA model {i} initialized successfully!")
@@ -131,7 +126,7 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
     print(f"Starting at time: {datetime.datetime.now()}")
-    results_log = runnable_simulation.play(max_steps=1000000, start_time=args.start_time, duration=effective_duration)
+    results_log = runnable_simulation.play(max_steps=100, start_time=args.start_time, duration=effective_duration)
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
