@@ -2,8 +2,6 @@ import time
 import datetime
 import argparse
 from concordia_components.unsloth_model import UnslothLanguageModel, UnslothLora
-from concordia.language_model.transformers_model import TransformersLanguageModel, TransformersLora
-from concordia.language_model.no_language_model import NoLanguageModel
 from concordia_components.simulation import SocialMediaSim
 from concordia_components.entities import User, NewsSource
 from concordia_components.engine import SimEngine
