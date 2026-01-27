@@ -31,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--loras_path", type=str, help="Path to the LoRA models directory")
     parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
     parser.add_argument("--random_graph", action='store_true', help="Use a random graph instead of powerlaw cluster graph")
+    parser.add_argument("--survey_output", type=str, default="survey_results.json", help="Path to save survey results")
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -147,9 +148,9 @@ if __name__ == "__main__":
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
     # Save survey results
-    with open('survey_results.json', 'w') as f:
+    with open(args.survey_output, 'w') as f:
         json.dump(sim_engine.get_survey_results(), f, indent=2)
-    print("Survey results saved to survey_results.json")
+    print(f"Survey results saved to {args.survey_output}")
 
     for thread in runnable_simulation._engine._threads:
         print(f"================== Thread ID: {thread.id}")
