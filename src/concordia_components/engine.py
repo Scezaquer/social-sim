@@ -298,7 +298,7 @@ class SimEngine(engine_lib.Engine):
                     options = self._survey_config['options']
                     results = {}
                     print(f"\n--- Running Survey at Step {steps} ---")
-                    for entity in entities:
+                    for entity in tqdm(entities, desc="Surveying Entities", leave=False):
                         if isinstance(entity, User):
                             response = entity.survey_response(question, options)
                             results[entity.name] = response
