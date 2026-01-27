@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=RandomGraph
+#SBATCH --job-name=PowerLaw
 #SBATCH --array=0
 #SBATCH --time=7:00:00
 #SBATCH --mem=24Gb
