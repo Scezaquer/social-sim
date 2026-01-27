@@ -48,12 +48,19 @@ class UnslothLanguageModel(language_model.LanguageModel):
     )
     FastLanguageModel.for_inference(self.model)
 
+    if self.tokenizer.chat_template is None or "Qwen" in self._model_name:
+        print("Using custom ChatML template.")
+        self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
   def increment_lora_adapters(self) -> int:
     self._nbr_lora_adapters += 1
     return self._nbr_lora_adapters
     
   def load_adapter(self, lora_path: str, adapter_name: str):
       self.model.load_adapter(lora_path, adapter_name)
+    
+  def apply_chat_template(self, messages: list[dict[str, str]], add_generation_prompt: bool = True) -> str:
+      return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=add_generation_prompt)
       
   @override
   def sample_text(
@@ -184,6 +191,9 @@ class UnslothLora(language_model.LanguageModel):
         
     self._adapter_name = f"adapter_{self._base_model.increment_lora_adapters()}"
     self._base_model.load_adapter(lora_path, self._adapter_name)
+
+  def apply_chat_template(self, messages: list[dict[str, str]], add_generation_prompt: bool = True) -> str:
+      return self._base_model.apply_chat_template(messages, add_generation_prompt=add_generation_prompt)
 
   @override
   def sample_text(

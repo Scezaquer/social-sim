@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 from concordia.typing.entity import DEFAULT_ACTION_SPEC
 from typing import Any
 from concordia_components.type_aliases import Thread
-from concordia_components.entities import NewsSource
+from concordia_components.entities import NewsSource, User
 import numpy as np
 from tqdm import tqdm
 import networkx as nx
@@ -14,7 +14,9 @@ class SimEngine(engine_lib.Engine):
     """Engine interface."""
 
     def __init__(self,
-                 threads: list[Thread] = None
+                 threads: list[Thread] = None,
+                 graph: Any = None,
+                 survey_config: dict[str, Any] = None
                  ):
         self._threads = [] if threads is None else threads
         self._entity_activity_probs = None
@@ -22,6 +24,14 @@ class SimEngine(engine_lib.Engine):
         self._acting_entities = None
         self._acting_probs = None
         self._name_to_idx = None
+        self._initial_graph = graph
+        self._survey_config = survey_config
+        self._step_count = 0
+        self._survey_results = []
+
+    def get_survey_results(self) -> list[dict[str, Any]]:
+        """Returns the results of the surveys."""
+        return self._survey_results
 
     def _initialize_social_context(self, entities: Sequence[entity_lib.Entity]):
         n_entities = len(entities)
@@ -59,22 +69,64 @@ class SimEngine(engine_lib.Engine):
         self._acting_probs = final_weights
         
         # Social Graph using NetworkX
-        # Scale-free graph for realistic social media topology (hubs/poles)
-        G = nx.scale_free_graph(n_entities, seed=42)
-        
         self._social_graph = [set() for _ in range(n_entities)]
-        for u, v in G.edges():
-            if u != v and u < n_entities and v < n_entities:
-                self._social_graph[u].add(v)
-        
-        # Force many users to follow NewsSource
-        for ns_idx in news_source_indices:
-            for i in range(n_entities):
-                if i != ns_idx and np.random.rand() < 0.8:
-                    self._social_graph[i].add(ns_idx)
-        
-        # Clear G to free memory
-        del G
+
+        if self._initial_graph is not None:
+            G = self._initial_graph
+            
+            # Calculate degrees to identify hubs
+            if G.is_directed():
+                degree_dict = dict(G.in_degree())
+            else:
+                degree_dict = dict(G.degree())
+                
+            sorted_nodes = sorted(degree_dict, key=degree_dict.get, reverse=True)
+            
+            node_to_entity_idx = {}
+            used_nodes = set()
+            
+            # Assign NewsSources to highest degree nodes
+            for i, ns_idx in enumerate(news_source_indices):
+                if i < len(sorted_nodes):
+                    node = sorted_nodes[i]
+                    node_to_entity_idx[node] = ns_idx
+                    used_nodes.add(node)
+            
+            # Assign remaining entities
+            remaining_indices = [i for i in range(n_entities) if i not in news_source_indices]
+            remaining_nodes = [n for n in sorted_nodes if n not in used_nodes]
+            
+            # Shuffle remaining indices to avoid correlation
+            np.random.shuffle(remaining_indices)
+            
+            for i, r_idx in enumerate(remaining_indices):
+                if i < len(remaining_nodes):
+                    node = remaining_nodes[i]
+                    node_to_entity_idx[node] = r_idx
+            
+            # Build social graph from G edges
+            for u, v in G.edges():
+                if u in node_to_entity_idx and v in node_to_entity_idx:
+                    u_idx = node_to_entity_idx[u]
+                    v_idx = node_to_entity_idx[v]
+                    if u_idx != v_idx:
+                        self._social_graph[u_idx].add(v_idx)
+        else:
+            # Scale-free graph for realistic social media topology (hubs/poles)
+            G = nx.scale_free_graph(n_entities, seed=42)
+            
+            for u, v in G.edges():
+                if u != v and u < n_entities and v < n_entities:
+                    self._social_graph[u].add(v)
+            
+            # Force many users to follow NewsSource
+            for ns_idx in news_source_indices:
+                for i in range(n_entities):
+                    if i != ns_idx and np.random.rand() < 0.8:
+                        self._social_graph[i].add(ns_idx)
+            
+            # Clear G to free memory
+            del G
 
     def make_observation(
         self,
@@ -239,6 +291,25 @@ class SimEngine(engine_lib.Engine):
 
                 if verbose:
                     print(f"Step {steps}")
+
+                # Survey Logic
+                if self._survey_config and steps % self._survey_config['interval'] == 0:
+                    question = self._survey_config['question']
+                    options = self._survey_config['options']
+                    results = {}
+                    print(f"\n--- Running Survey at Step {steps} ---")
+                    for entity in entities:
+                        if isinstance(entity, User):
+                            response = entity.survey_response(question, options)
+                            results[entity.name] = response
+                    
+                    self._survey_results.append({
+                        'step': steps,
+                        'question': question,
+                        'results': results
+                    })
+                    print(f"--- Survey Completed ---\n")
+
                 # 10 observations for every action
                 for i in range(10):
                     acting_entity, action_spec = self.next_acting(

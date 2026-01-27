@@ -12,6 +12,7 @@ import torch
 import transformers
 import names
 import json
+import networkx as nx
 
 def get_unique_name(used_names):
     while True:
@@ -31,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_time", type=float, help="Start time of the job")
     parser.add_argument("--loras_path", type=str, help="Path to the LoRA models directory")
     parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
+    parser.add_argument("--random_graph", action='store_true', help="Use a random graph instead of powerlaw cluster graph")
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -87,20 +89,25 @@ if __name__ == "__main__":
         user = User(name=name, model=model, model_id=model_id)
         entities.append(user)
 
-    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
+    with open(os.path.join(WORKSPACE_ROOT, 'poilievre_tweets.json'), 'r') as f:
         news_feed = json.load(f)
     news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     entities.append(news_entity)
 
-    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
-        news_feed2 = json.load(f)
-    news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
-    entities.append(news_entity2)
+    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
+    #     news_feed = json.load(f)
+    # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
+    # entities.append(news_entity)
 
-    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
-        news_feed3 = json.load(f)
-    news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
-    entities.append(news_entity3)
+    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
+    #     news_feed2 = json.load(f)
+    # news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
+    # entities.append(news_entity2)
+
+    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
+    #     news_feed3 = json.load(f)
+    # news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
+    # entities.append(news_entity3)
 
     print("Entity distribution among models:")
     for model_name, count in model_counts.items():
@@ -109,9 +116,20 @@ if __name__ == "__main__":
     # Initialize Optimized Engine
     classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
     print(f"Using classifier template: {classifier_template}")
+
+    survey_config = {
+        'interval': 250,
+        'question': 'You are in a voting booth. Who do you vote for: Pierre Poilievre or Mark Carney? Answer only with the name of your preferred candidate.',
+        'options': ['Pierre Poilievre', 'Mark Carney']
+    }
+
+    if args.random_graph:
+        G = nx.erdos_renyi_graph(NUM_ENTITIES + 1, 0.05, seed=42)
+    else:
+        G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=42)
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
-    sim_engine = SimEngine()
+    sim_engine = SimEngine(survey_config=survey_config, graph=G)
 
     runnable_simulation = SocialMediaSim(
         config=config,
@@ -126,7 +144,7 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
     print(f"Starting at time: {datetime.datetime.now()}")
-    results_log = runnable_simulation.play(max_steps=100, start_time=args.start_time, duration=effective_duration)
+    results_log = runnable_simulation.play(max_steps=5000, start_time=args.start_time, duration=effective_duration)
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 

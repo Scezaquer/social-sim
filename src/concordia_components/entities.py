@@ -1,6 +1,7 @@
 import functools
 
 from typing import Any
+from collections.abc import Sequence
 from concordia.typing import entity
 from typing_extensions import override
 from concordia.typing.entity import ActionSpec, DEFAULT_ACTION_SPEC
@@ -71,7 +72,7 @@ class User(entity.EntityWithLogging):
                  model: LanguageModel,
                  name: str,
                  model_id: int = 0,
-                 context: str = "",
+                 context: list[dict[str, str]] = None,
                  action_classifier = None,
                  logs: dict[str, Any] = None
                  ):
@@ -79,10 +80,10 @@ class User(entity.EntityWithLogging):
         self._model = model
         self._name = name
         self._model_id = model_id
-        self._context = context
+        self._context = context if context is not None else []
         self._action_classifier = action_classifier
         self._logs = logs if logs is not None else {}
-        self._max_context_length = 16384
+        self._max_messages = 50
         self._pending_prompt = None
 
     @override
@@ -95,27 +96,15 @@ class User(entity.EntityWithLogging):
     def model_id(self) -> int:
         return self._model_id
 
-    def _format_message(self, role: str, message: str) -> str:
-        """Format a message for the user."""
-        return f"<|im_start|>{role}\n{message}<|im_end|>\n"
-
-    def _format_thread(self, thread: Thread) -> str:
-        """Format a thread for the user."""
-        formatted_thread = ""
-        for message in thread.content:
-            formatted_thread += self._format_message(message['role'], message['content'])
-        return formatted_thread
-
     def get_prompt(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
         """Constructs the prompt but does not sample."""
-        self._context += f"<|im_start|>assistant\n"
-        if len(self._context) > self._max_context_length:
-            self._context = self._context[-self._max_context_length*2//3:]
-        return self._context
+        if len(self._context) > self._max_messages:
+            self._context = self._context[-self._max_messages:]
+        return self._model.apply_chat_template(self._context, add_generation_prompt=True)
 
     def complete_action(self, response: str) -> str:
         """Completes the action with the generated response."""
-        self._context += f"{response}<|im_end|>\n"
+        self._context.append({"role": "assistant", "content": response})
         return response
 
     @override
@@ -127,16 +116,23 @@ class User(entity.EntityWithLogging):
 
     @override
     def observe(self, thread: Thread) -> None:
-        """Informs the Entity of an observation.
-
-        Args:
-        observation: The observation for the entity to process. Always a string.
-        """
-        self._context += "### New Thread ###\n"
-        self._context += self._format_message("system", f"Write a post for a new conversation thread.")
-        self._context += self._format_thread(thread)
+        """Informs the Entity of an observation."""
+        self._context.append({"role": "system", "content": "### New Thread ###\nWrite a post for a new conversation thread."})
+        self._context.extend(thread.content)
 
     @override
     def get_last_log(self) -> dict[str, Any]:
         """Returns debugging information in the form of a dictionary."""
         return self._logs
+
+    def survey_response(self, question: str, options: Sequence[str]) -> str:
+        """Returns the entity's response to a survey question."""
+        temp_context = list(self._context)
+        if len(temp_context) > self._max_messages:
+            temp_context = temp_context[-self._max_messages:]
+        
+        temp_context.append({"role": "user", "content": question})
+        prompt = self._model.apply_chat_template(temp_context, add_generation_prompt=True)
+
+        idx, choice, _ = self._model.sample_choice(prompt=prompt, responses=options)
+        return choice
