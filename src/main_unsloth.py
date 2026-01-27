@@ -146,6 +146,11 @@ if __name__ == "__main__":
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
+    # Save survey results
+    with open('survey_results.json', 'w') as f:
+        json.dump(sim_engine.get_survey_results(), f, indent=2)
+    print("Survey results saved to survey_results.json")
+
     for thread in runnable_simulation._engine._threads:
         print(f"================== Thread ID: {thread.id}")
         for message in thread.content:
