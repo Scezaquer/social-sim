@@ -84,6 +84,7 @@ class User(entity.EntityWithLogging):
         self._action_classifier = action_classifier
         self._logs = logs if logs is not None else {}
         self._max_messages = 50
+        self._max_length = 4096
         self._pending_prompt = None
 
     @override
@@ -111,7 +112,7 @@ class User(entity.EntityWithLogging):
     def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
         """Returns the entity's intended action given the action spec."""
         prompt = self.get_prompt(action_spec)
-        response = self._model.sample_text(prompt=prompt, max_tokens=200)
+        response = self._model.sample_text(prompt=prompt, max_tokens=100)
         return self.complete_action(response)
 
     @override
