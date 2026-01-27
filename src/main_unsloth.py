@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
     print(f"Starting at time: {datetime.datetime.now()}")
-    results_log = runnable_simulation.play(max_steps=5000, start_time=args.start_time, duration=effective_duration)
+    results_log = runnable_simulation.play(max_steps=2500, start_time=args.start_time, duration=effective_duration)
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
