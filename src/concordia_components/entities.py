@@ -101,7 +101,14 @@ class User(entity.EntityWithLogging):
         """Constructs the prompt but does not sample."""
         if len(self._context) > self._max_messages:
             self._context = self._context[-self._max_messages:]
-        return self._model.apply_chat_template(self._context, add_generation_prompt=True)
+        
+        while True:
+            prompt = self._model.apply_chat_template(self._context, add_generation_prompt=True)
+            if len(prompt) < self._max_length:
+                break
+            self._context = self._context[5:]
+
+        return prompt
 
     def complete_action(self, response: str) -> str:
         """Completes the action with the generated response."""
@@ -112,7 +119,7 @@ class User(entity.EntityWithLogging):
     def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
         """Returns the entity's intended action given the action spec."""
         prompt = self.get_prompt(action_spec)
-        response = self._model.sample_text(prompt=prompt, max_tokens=80)
+        response = self._model.sample_text(prompt=prompt, max_tokens=200)
         return self.complete_action(response)
 
     @override
@@ -133,7 +140,12 @@ class User(entity.EntityWithLogging):
             temp_context = temp_context[-self._max_messages:]
         
         temp_context.append({"role": "user", "content": question})
-        prompt = self._model.apply_chat_template(temp_context, add_generation_prompt=True)
+        while True:
+            prompt = self._model.apply_chat_template(temp_context, add_generation_prompt=True)
+            if len(prompt) < self._max_length:
+                break
+
+            temp_context = temp_context[5:]
 
         idx, choice, _ = self._model.sample_choice(prompt=prompt, responses=options)
         return choice
