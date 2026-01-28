@@ -2,7 +2,7 @@
 #SBATCH --job-name=RandomGraph
 #SBATCH --array=0-6
 #SBATCH --time=8:00:00
-#SBATCH --mem=24Gb
+#SBATCH --mem=16Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=main
