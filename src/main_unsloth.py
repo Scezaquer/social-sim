@@ -88,25 +88,25 @@ if __name__ == "__main__":
         user = User(name=name, model=model, model_id=model_id)
         entities.append(user)
 
-    with open(os.path.join(WORKSPACE_ROOT, 'poilievre_tweets.json'), 'r') as f:
-        news_feed = json.load(f)
-    news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
-    entities.append(news_entity)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
+    # with open(os.path.join(WORKSPACE_ROOT, 'poilievre_tweets.json'), 'r') as f:
     #     news_feed = json.load(f)
     # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     # entities.append(news_entity)
 
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
-    #     news_feed2 = json.load(f)
-    # news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
-    # entities.append(news_entity2)
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
+        news_feed = json.load(f)
+    news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
+    entities.append(news_entity)
 
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
-    #     news_feed3 = json.load(f)
-    # news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
-    # entities.append(news_entity3)
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
+        news_feed2 = json.load(f)
+    news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
+    entities.append(news_entity2)
+
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
+        news_feed3 = json.load(f)
+    news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
+    entities.append(news_entity3)
 
     print("Entity distribution among models:")
     for model_name, count in model_counts.items():
