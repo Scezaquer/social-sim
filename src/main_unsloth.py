@@ -128,7 +128,7 @@ if __name__ == "__main__":
         G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=42)
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
-    sim_engine = SimEngine(survey_config=survey_config, graph=G)
+    sim_engine = SimEngine(survey_config=None, graph=G)
 
     runnable_simulation = SocialMediaSim(
         config=config,
@@ -157,3 +157,15 @@ if __name__ == "__main__":
         for message in thread.content:
             print(f"[{message['role']}]: {message['content']}")
         print()
+
+    threads_to_save = []
+    for thread in runnable_simulation._engine._threads:
+        threads_to_save.append({
+            "id": thread.id,
+            "messages": thread.content
+        })
+
+    output_path = os.path.join(WORKSPACE_ROOT, f"simulation_threads_{int(time.time())}.json")
+    with open(output_path, 'w') as f:
+        json.dump(threads_to_save, f, indent=4)
+    print(f"Threads saved to {output_path}")

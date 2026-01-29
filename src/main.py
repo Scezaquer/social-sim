@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
     print(f"Starting at time: {datetime.datetime.now()}")
-    results_log = runnable_simulation.play(max_steps=1000000, start_time=args.start_time, duration=effective_duration)
+    results_log = runnable_simulation.play(max_steps=1000, start_time=args.start_time, duration=effective_duration)
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
@@ -139,3 +139,15 @@ if __name__ == "__main__":
         for message in thread.content:
             print(f"[{message['role']}]: {message['content']}")
         print()
+    
+    threads_to_save = []
+    for thread in runnable_simulation._engine._threads:
+        threads_to_save.append({
+            "id": thread.id,
+            "messages": thread.content
+        })
+
+    output_path = os.path.join(WORKSPACE_ROOT, f"simulation_threads_{int(time.time())}.json")
+    with open(output_path, 'w') as f:
+        json.dump(threads_to_save, f, indent=4)
+    print(f"Threads saved to {output_path}")
