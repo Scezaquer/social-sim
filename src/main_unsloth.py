@@ -128,7 +128,7 @@ if __name__ == "__main__":
         G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=42)
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
-    sim_engine = SimEngine(survey_config=None, graph=G)
+    sim_engine = SimEngine(survey_config=survey_config, graph=G)
 
     runnable_simulation = SocialMediaSim(
         config=config,
