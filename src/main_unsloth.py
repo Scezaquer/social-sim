@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
     parser.add_argument("--random_graph", action='store_true', help="Use a random graph instead of powerlaw cluster graph")
     parser.add_argument("--survey_output", type=str, default="survey_results.json", help="Path to save survey results")
+    parser.add_argument("--array_id", type=int, default=0, help="Array index for job differentiation")
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -97,20 +98,25 @@ if __name__ == "__main__":
     # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     # entities.append(news_entity)
 
-    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
+    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
+    #     news_feed = json.load(f)
+    # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
+    # entities.append(news_entity)
+
+    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
+    #     news_feed2 = json.load(f)
+    # news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
+    # entities.append(news_entity2)
+
+    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
+    #     news_feed3 = json.load(f)
+    # news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
+    # entities.append(news_entity3)
+
+    with open(os.path.join(WORKSPACE_ROOT, 'trump_tweets.json'), 'r') as f:
         news_feed = json.load(f)
     news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     entities.append(news_entity)
-
-    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
-        news_feed2 = json.load(f)
-    news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
-    entities.append(news_entity2)
-
-    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
-        news_feed3 = json.load(f)
-    news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
-    entities.append(news_entity3)
 
     print("Entity distribution among models:")
     for model_name, count in model_counts.items():
@@ -127,9 +133,9 @@ if __name__ == "__main__":
     }
 
     if args.random_graph:
-        G = nx.erdos_renyi_graph(NUM_ENTITIES + 1, 0.05, seed=42)
+        G = nx.erdos_renyi_graph(NUM_ENTITIES + 1, 0.05, seed=args.array_id)
     else:
-        G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=42)
+        G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=args.array_id)
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
     sim_engine = SimEngine(survey_config=survey_config, graph=G)

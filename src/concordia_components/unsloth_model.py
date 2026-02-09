@@ -183,20 +183,31 @@ class UnslothLanguageModel(language_model.LanguageModel):
             outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
             
-            # Shift logits
+            # Calculate log-probs for the ENTIRE sequence once to ensure alignment
+            # Logits at index i predict tokens at index i+1
             shift_logits = logits[0, :-1, :].contiguous()
             shift_labels = inputs.input_ids[0, 1:].contiguous()
             
-            start_idx = prompt_len - 1
-            if start_idx < 0: start_idx = 0
+            # Safety check: ensure lengths match before gather
+            # This handles cases where unsloth might return slightly different shapes
+            min_len = min(shift_logits.shape[0], shift_labels.shape[0])
+            shift_logits = shift_logits[-min_len:]
+            shift_labels = shift_labels[-min_len:]
             
-            response_logits = shift_logits[start_idx:]
-            response_labels = shift_labels[start_idx:]
+            log_probs_all = torch.nn.functional.log_softmax(shift_logits, dim=-1)
+            token_log_probs_all = log_probs_all.gather(1, shift_labels.unsqueeze(1)).squeeze(1)
             
-            log_probs_tensor = torch.nn.functional.log_softmax(response_logits, dim=-1)
-            token_log_probs = log_probs_tensor.gather(1, response_labels.unsqueeze(1)).squeeze(1)
+            # Identify response tokens (those generated after the prompt)
+            num_resp_tokens = inputs.input_ids.shape[1] - prompt_len
+            if num_resp_tokens <= 0:
+                # If prompt/response merging happened, use at least the last token
+                # or 0 if it was truly empty
+                num_resp_tokens = max(0, min(1, token_log_probs_all.shape[0]))
             
-            total_logprob = token_log_probs.sum().item()
+            # Take log-probs from the end of the combined sequence
+            response_log_probs = token_log_probs_all[-num_resp_tokens:] if num_resp_tokens > 0 else torch.tensor([], device="cuda")
+            
+            total_logprob = response_log_probs.sum().item()
             logprobs.append(total_logprob)
             
     best_idx = int(max(range(len(logprobs)), key=lambda i: logprobs[i]))
