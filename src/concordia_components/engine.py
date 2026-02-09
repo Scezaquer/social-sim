@@ -154,12 +154,12 @@ class SimEngine(engine_lib.Engine):
             else:
                 return None
 
-        # Only consider the last 200 threads for efficiency
-        relevant_threads = self._threads[-200:]
+        # Only consider the last 50 threads for efficiency
+        relevant_threads = self._threads[-50:]
 
         # Calculate weights proportional to thread length
-        thread_lengths = np.array([float(len(thread.content)) for thread in relevant_threads])
-        # Add 1 to avoid division by zero and ensure non-zero weights
+        thread_lengths = np.array([float(len(thread.content) + 2) for thread in relevant_threads])
+        # Add 1 to normalize and prevent zero-length threads from having zero probability, and +1 more to ensure even very short threads have some chance of being selected.
         weights = thread_lengths
 
         # Prevent self-replies
