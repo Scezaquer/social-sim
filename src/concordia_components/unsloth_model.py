@@ -23,7 +23,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
       model_name: str,
       *,
       max_seq_length: int = 4096,
-      load_in_4bit: bool = True,
+      load_in_4bit: bool = False,
       measurements: measurements_lib.Measurements | None = None,
       channel: str = language_model.DEFAULT_STATS_CHANNEL,
       **kwargs: Any,
@@ -46,11 +46,17 @@ class UnslothLanguageModel(language_model.LanguageModel):
         load_in_4bit=load_in_4bit,
         **kwargs
     )
-    FastLanguageModel.for_inference(self.model)
+    # Ensure pad_token is set (crucial for Llama-3 models in Unsloth)
+    if self.tokenizer.pad_token is None:
+        self.tokenizer.pad_token = self.tokenizer.eos_token
 
     if self.tokenizer.chat_template is None or "Qwen" in self._model_name:
         print("Using custom ChatML template.")
         self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+  def finalize_inference(self):
+    """Call after loading all LoRA adapters to optimize for inference."""
+    FastLanguageModel.for_inference(self.model)
 
   def increment_lora_adapters(self) -> int:
     self._nbr_lora_adapters += 1
@@ -127,15 +133,15 @@ class UnslothLanguageModel(language_model.LanguageModel):
     if adapter_name:
         self.model.set_adapter(adapter_name)
         
+    # Pre-tokenize prompt once to get its length
+    prompt_inputs = self.tokenizer(prompt, return_tensors="pt")
+    prompt_len = prompt_inputs.input_ids.shape[1]
+    
     logprobs = []
     with torch.no_grad():
         for response in responses:
             full_text = prompt + response
             inputs = self.tokenizer(full_text, return_tensors="pt").to("cuda")
-            
-            # Find where response starts
-            prompt_inputs = self.tokenizer(prompt, return_tensors="pt")
-            prompt_len = prompt_inputs.input_ids.shape[1]
             
             outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)

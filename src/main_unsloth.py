@@ -49,7 +49,7 @@ if __name__ == "__main__":
         f"Initializing Unsloth model: {VLLM_MODEL_NAME}")
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
-        load_in_4bit=True,
+        load_in_4bit=False,
     )
 
     # Number of total actions from each cluster in the training data
@@ -73,6 +73,9 @@ if __name__ == "__main__":
         )
         models.append(model_i)
         print(f"LoRA model {i} initialized successfully!")
+    
+    # Finalize model for inference after all adapters are loaded
+    base_model.finalize_inference()
 
     instances = None  # Replace with actual list of prefab_lib.InstanceConfig
     config = None  # Replace with actual config
