@@ -41,7 +41,7 @@ if __name__ == "__main__":
     print("Compute capability:", torch.cuda.get_device_capability(0))
 
     NUM_ENTITIES = 1_000
-    VLLM_MODEL_NAME = "marcelbinz/Llama-3.1-Minitaur-8B"
+    VLLM_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
     PREFIX_CACHING = False
 
     # model = NoLanguageModel()
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         f"Initializing Unsloth model: {VLLM_MODEL_NAME}")
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
-        # load_in_4bit=True,
+        load_in_4bit=True,
     )
 
     # Number of total actions from each cluster in the training data
@@ -62,8 +62,7 @@ if __name__ == "__main__":
     models = []
 
     for i in range(25):
-        # lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
-        lora_path = os.path.join(args.loras_path, f"Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}")
+        lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
         # lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
         print(f"Loading LoRA model from: {lora_path}")
         model_i = UnslothLora(
@@ -94,25 +93,20 @@ if __name__ == "__main__":
     # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     # entities.append(news_entity)
 
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
-    #     news_feed = json.load(f)
-    # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
-    # entities.append(news_entity)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
-    #     news_feed2 = json.load(f)
-    # news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
-    # entities.append(news_entity2)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
-    #     news_feed3 = json.load(f)
-    # news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
-    # entities.append(news_entity3)
-
-    with open(os.path.join(WORKSPACE_ROOT, 'trump_tweets.json'), 'r') as f:
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
         news_feed = json.load(f)
-    news_entity = NewsSource(name="World Report", news_feed=news_feed)
+    news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
     entities.append(news_entity)
+
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
+        news_feed2 = json.load(f)
+    news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
+    entities.append(news_entity2)
+
+    with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
+        news_feed3 = json.load(f)
+    news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
+    entities.append(news_entity3)
 
     print("Entity distribution among models:")
     for model_name, count in model_counts.items():
@@ -124,8 +118,8 @@ if __name__ == "__main__":
 
     survey_config = {
         'interval': 250,
-        'question': "Would you rather vote for Donald Trump or Kamala Harris? You may only answer with 'Donald Trump' or 'Kamala Harris'.",
-        'options': ['Donald Trump', 'Kamala Harris']
+        'question': 'You are in a voting booth. Who do you vote for: Pierre Poilievre or Mark Carney? Answer only with the name of your preferred candidate.',
+        'options': ['Pierre Poilievre', 'Mark Carney']
     }
 
     if args.random_graph:

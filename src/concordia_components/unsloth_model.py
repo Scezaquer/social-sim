@@ -23,7 +23,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
       model_name: str,
       *,
       max_seq_length: int = 4096,
-      load_in_4bit: bool = False,
+      load_in_4bit: bool = True,
       measurements: measurements_lib.Measurements | None = None,
       channel: str = language_model.DEFAULT_STATS_CHANNEL,
       **kwargs: Any,

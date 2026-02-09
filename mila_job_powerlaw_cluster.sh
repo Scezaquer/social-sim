@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=PowerLaw
-#SBATCH --array=0-4
+#SBATCH --array=0
 #SBATCH --time=8:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
@@ -11,4 +11,4 @@ module load python/3.10
 source $HOME/ENV/bin/activate
 export HF_HUB_CACHE=$SCRATCH/HF-cache
 export UNSLOTH_CACHE_DIR=$SLURM_TMPDIR/unsloth-cache
-python src/main_unsloth.py --loras_path $SCRATCH/marcelbinz --survey_output survey_powerlaw_${SLURM_ARRAY_TASK_ID}.json
+python src/main_unsloth.py --loras_path $SCRATCH/qwen-loras --survey_output survey_powerlaw_${SLURM_ARRAY_TASK_ID}.json
