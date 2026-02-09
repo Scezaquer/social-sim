@@ -49,7 +49,7 @@ if __name__ == "__main__":
         f"Initializing Unsloth model: {VLLM_MODEL_NAME}")
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
-        load_in_4bit=True,
+        # load_in_4bit=True,
     )
 
     # Number of total actions from each cluster in the training data
