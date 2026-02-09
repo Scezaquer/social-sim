@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=RandomGraph
 #SBATCH --array=0-4
-#SBATCH --time=8:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
