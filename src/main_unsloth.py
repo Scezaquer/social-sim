@@ -33,6 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("--random_graph", action='store_true', help="Use a random graph instead of powerlaw cluster graph")
     parser.add_argument("--survey_output", type=str, default="survey_results.json", help="Path to save survey results")
     parser.add_argument("--array_id", type=int, default=0, help="Array index for job differentiation")
+    parser.add_argument("--job_id", type=int, default=0, help="Job ID for logging purposes")
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -175,7 +176,7 @@ if __name__ == "__main__":
             "messages": thread.content
         })
 
-    output_path = os.path.join(WORKSPACE_ROOT, f"simulation_threads_{int(time.time())}.json")
+    output_path = os.path.join(WORKSPACE_ROOT, f"simulation_threads_{args.job_id}_{args.array_id}.json")
     with open(output_path, 'w') as f:
         json.dump(threads_to_save, f, indent=4)
     print(f"Threads saved to {output_path}")
