@@ -18,14 +18,20 @@ except ImportError:
 from transformers import StoppingCriteria, StoppingCriteriaList
 
 class StopOnString(StoppingCriteria):
-    def __init__(self, tokenizer, stop_string):
+    def __init__(self, tokenizer, stop_string, prompt_len):
         self.tokenizer = tokenizer
         self.stop_string = stop_string
+        self.prompt_len = prompt_len
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        # Check if the stop string is in the last 15 tokens to avoid decoding the whole context every time
-        decoded_last = self.tokenizer.decode(input_ids[0, -15:])
-        return self.stop_string in decoded_last
+        # Only look at the tokens generated AFTER the prompt
+        generated_tokens = input_ids[0, self.prompt_len:]
+        if len(generated_tokens) < 1:
+            return False
+            
+        # Check if the stop string is in the last 15 tokens of the NEWLY generated text
+        decoded_gen = self.tokenizer.decode(generated_tokens[-15:])
+        return self.stop_string in decoded_gen
 
 class UnslothLanguageModel(language_model.LanguageModel):
   """Language model wrapper for Unsloth local inference."""
@@ -100,6 +106,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
         self.model.set_adapter(adapter_name)
     
     inputs = self.tokenizer([prompt], return_tensors="pt").to("cuda")
+    prompt_len = inputs.input_ids.shape[1]
     
     do_sample = temperature > 0
     
@@ -114,11 +121,11 @@ class UnslothLanguageModel(language_model.LanguageModel):
     # Use StoppingCriteria to handle cases where the model generates the stop string as multiple tokens
     stopping_criteria = StoppingCriteriaList()
     if "<|im_end|>" not in (terminators or []):
-        stopping_criteria.append(StopOnString(self.tokenizer, "<|im_end|>"))
+        stopping_criteria.append(StopOnString(self.tokenizer, "<|im_end|>", prompt_len))
     
     if terminators:
         for term in terminators:
-            stopping_criteria.append(StopOnString(self.tokenizer, term))
+            stopping_criteria.append(StopOnString(self.tokenizer, term, prompt_len))
     
     with torch.no_grad():
         outputs = self.model.generate(
