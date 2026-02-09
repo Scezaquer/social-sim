@@ -15,6 +15,18 @@ except ImportError:
   FastLanguageModel = None
   UNSLOTH_AVAILABLE = False
 
+from transformers import StoppingCriteria, StoppingCriteriaList
+
+class StopOnString(StoppingCriteria):
+    def __init__(self, tokenizer, stop_string):
+        self.tokenizer = tokenizer
+        self.stop_string = stop_string
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        # Check if the stop string is in the last 15 tokens to avoid decoding the whole context every time
+        decoded_last = self.tokenizer.decode(input_ids[0, -15:])
+        return self.stop_string in decoded_last
+
 class UnslothLanguageModel(language_model.LanguageModel):
   """Language model wrapper for Unsloth local inference."""
 
@@ -50,9 +62,12 @@ class UnslothLanguageModel(language_model.LanguageModel):
     if self.tokenizer.pad_token is None:
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
-    if self.tokenizer.chat_template is None or "Qwen" in self._model_name:
+    if self.tokenizer.chat_template is None or "Qwen" in self._model_name or "Minitaur" in self._model_name:
         print("Using custom ChatML template.")
         self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+        
+        # Ensure ChatML tokens are recognized and added to EOS
+        self.tokenizer.add_special_tokens({"additional_special_tokens": ["<|im_start|>", "<|im_end|>"]})
 
   def finalize_inference(self):
     """Call after loading all LoRA adapters to optimize for inference."""
@@ -91,6 +106,21 @@ class UnslothLanguageModel(language_model.LanguageModel):
     
     do_sample = temperature > 0
     
+    # Get all potential stop token IDs
+    stop_tokens = [self.tokenizer.eos_token_id]
+    im_end_id = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
+    if im_end_id is not None and im_end_id != self.tokenizer.unk_token_id:
+        stop_tokens.append(im_end_id)
+
+    # Use StoppingCriteria to handle cases where the model generates the stop string as multiple tokens
+    stopping_criteria = StoppingCriteriaList()
+    if "<|im_end|>" not in (terminators or []):
+        stopping_criteria.append(StopOnString(self.tokenizer, "<|im_end|>"))
+    
+    if terminators:
+        for term in terminators:
+            stopping_criteria.append(StopOnString(self.tokenizer, term))
+    
     with torch.no_grad():
         outputs = self.model.generate(
             **inputs,
@@ -101,7 +131,8 @@ class UnslothLanguageModel(language_model.LanguageModel):
             top_k=top_k,
             do_sample=do_sample,
             pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=self.tokenizer.eos_token_id,
+            eos_token_id=stop_tokens,
+            stopping_criteria=stopping_criteria,
         )
         
     generated_ids = outputs[0][inputs.input_ids.shape[1]:]
