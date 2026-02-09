@@ -65,9 +65,6 @@ class UnslothLanguageModel(language_model.LanguageModel):
     if self.tokenizer.chat_template is None or "Qwen" in self._model_name or "Minitaur" in self._model_name:
         print("Using custom ChatML template.")
         self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
-        
-        # Ensure ChatML tokens are recognized and added to EOS
-        self.tokenizer.add_special_tokens({"additional_special_tokens": ["<|im_start|>", "<|im_end|>"]})
 
   def finalize_inference(self):
     """Call after loading all LoRA adapters to optimize for inference."""
@@ -108,8 +105,10 @@ class UnslothLanguageModel(language_model.LanguageModel):
     
     # Get all potential stop token IDs
     stop_tokens = [self.tokenizer.eos_token_id]
-    im_end_id = self.tokenizer.convert_tokens_to_ids("<|im_end|>")
-    if im_end_id is not None and im_end_id != self.tokenizer.unk_token_id:
+    # Only add <|im_end|> as a stop token ID if it exists in the original vocabulary
+    # to avoid "out of bounds" errors if it's not a single token.
+    im_end_id = self.tokenizer.vocab.get("<|im_end|>", None)
+    if im_end_id is not None:
         stop_tokens.append(im_end_id)
 
     # Use StoppingCriteria to handle cases where the model generates the stop string as multiple tokens
