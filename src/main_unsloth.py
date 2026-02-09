@@ -41,7 +41,7 @@ if __name__ == "__main__":
     print("Compute capability:", torch.cuda.get_device_capability(0))
 
     NUM_ENTITIES = 1_000
-    VLLM_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
+    VLLM_MODEL_NAME = "marcelbinz/Llama-3.1-Minitaur-8B"
     PREFIX_CACHING = False
 
     # model = NoLanguageModel()
@@ -62,7 +62,8 @@ if __name__ == "__main__":
     models = []
 
     for i in range(25):
-        lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+        # lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+        lora_path = os.path.join(args.loras_path, f"Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}")
         # lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
         print(f"Loading LoRA model from: {lora_path}")
         model_i = UnslothLora(
