@@ -122,8 +122,8 @@ if __name__ == "__main__":
 
     survey_config = {
         'interval': 250,
-        'question': 'You are in a voting booth. Who do you vote for: Pierre Poilievre or Mark Carney? Answer only with the name of your preferred candidate.',
-        'options': ['Pierre Poilievre', 'Mark Carney']
+        'question': "Would you rather vote for Donald Trump or Kamala Harris? You may only answer with 'Donald Trump' or 'Kamala Harris'.",
+        'options': ['Donald Trump', 'Kamala Harris']
     }
 
     if args.random_graph:
