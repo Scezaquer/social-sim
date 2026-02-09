@@ -120,6 +120,7 @@ class User(entity.EntityWithLogging):
         """Returns the entity's intended action given the action spec."""
         prompt = self.get_prompt(action_spec)
         response = self._model.sample_text(prompt=prompt, max_tokens=200)
+        print(f"Entity {self._name} generated response: {response}")
         return self.complete_action(response)
 
     @override
