@@ -5,7 +5,7 @@
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=main
+#SBATCH --partition=unkillable
 
 module load python/3.10
 source $HOME/ENV/bin/activate
