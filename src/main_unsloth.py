@@ -29,7 +29,7 @@ def load_questions_and_options(file_path, question_number):
     
     data = data[question_number]
     question = data['question']
-    options = data["distributions"][0].keys()
+    options = list(data["distributions"][list(data["distributions"].keys())[0]].keys())
     model_probabilities = data['distributions']
     return question, options, model_probabilities
 
