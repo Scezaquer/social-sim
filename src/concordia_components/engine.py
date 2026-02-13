@@ -16,7 +16,9 @@ class SimEngine(engine_lib.Engine):
     def __init__(self,
                  threads: list[Thread] = None,
                  graph: Any = None,
-                 survey_config: dict[str, Any] = None
+                 survey_config: dict[str, Any] = None,
+                 homophily: bool = False,
+                 model_probabilities: list[dict[str, float]] | None = None,
                  ):
         self._threads = [] if threads is None else threads
         self._entity_activity_probs = None
@@ -28,6 +30,154 @@ class SimEngine(engine_lib.Engine):
         self._survey_config = survey_config
         self._step_count = 0
         self._survey_results = []
+        self._homophily = homophily
+        self._model_probabilities = model_probabilities
+        self._homophily_metrics = None
+
+    def _compute_model_opinion_scores(self) -> dict[int, float]:
+        if not self._model_probabilities:
+            return {}
+
+        scores = {}
+        for model_id, distribution in enumerate(self._model_probabilities):
+            probs = np.array(list(distribution.values()), dtype=float)
+            total = probs.sum()
+            if total <= 0:
+                scores[model_id] = 0.0
+                continue
+
+            probs = probs / total
+            support = np.arange(len(probs), dtype=float)
+            scores[model_id] = float(np.dot(support, probs))
+
+        return scores
+
+    def _assign_with_homophily(
+        self,
+        graph: Any,
+        remaining_nodes: list[int],
+        remaining_indices: list[int],
+        entities: Sequence[entity_lib.Entity],
+    ) -> dict[int, int]:
+        if not remaining_nodes or not remaining_indices:
+            return {}
+
+        if graph.is_directed():
+            undirected_graph = graph.to_undirected(as_view=False)
+        else:
+            undirected_graph = graph
+
+        graph_subset = undirected_graph.subgraph(remaining_nodes).copy()
+        positions = nx.spring_layout(graph_subset, seed=42, dim=1)
+        ordered_nodes = sorted(
+            remaining_nodes,
+            key=lambda node: float(np.ravel(np.asarray(positions.get(node, [0.0])))[0])
+        )
+
+        model_scores = self._compute_model_opinion_scores()
+        model_to_entity_indices: dict[int | None, list[int]] = {}
+        for entity_idx in remaining_indices:
+            model_id = getattr(entities[entity_idx], 'model_id', None)
+            model_to_entity_indices.setdefault(model_id, []).append(entity_idx)
+
+        rng = np.random.default_rng(42)
+        for indices in model_to_entity_indices.values():
+            rng.shuffle(indices)
+
+        ordered_model_ids = sorted(
+            model_to_entity_indices.keys(),
+            key=lambda model_id: (model_scores.get(model_id, float('inf')), str(model_id))
+        )
+
+        ordered_entity_indices = []
+        for model_id in ordered_model_ids:
+            ordered_entity_indices.extend(model_to_entity_indices[model_id])
+
+        node_to_entity_idx = {}
+        for node, entity_idx in zip(ordered_nodes, ordered_entity_indices):
+            node_to_entity_idx[node] = entity_idx
+
+        return node_to_entity_idx
+
+    def _compute_homophily_metrics(self, entities: Sequence[entity_lib.Entity]) -> dict[str, float]:
+        model_scores = self._compute_model_opinion_scores()
+
+        user_indices = [i for i, entity in enumerate(entities) if isinstance(entity, User)]
+        if not user_indices:
+            return {
+                "edge_similarity": 0.0,
+                "random_similarity": 0.0,
+                "excess_similarity": 0.0,
+                "same_model_edge_fraction": 0.0,
+                "edge_count": 0,
+            }
+
+        user_set = set(user_indices)
+        user_scores = {
+            idx: model_scores.get(getattr(entities[idx], "model_id", None), 0.0)
+            for idx in user_indices
+        }
+
+        min_score = min(user_scores.values()) if user_scores else 0.0
+        max_score = max(user_scores.values()) if user_scores else 0.0
+        score_range = max(max_score - min_score, 1e-12)
+
+        edge_similarities = []
+        same_model_count = 0
+        edge_count = 0
+
+        for u_idx in user_indices:
+            u_model_id = getattr(entities[u_idx], "model_id", None)
+            u_score = user_scores[u_idx]
+            for v_idx in self._social_graph[u_idx]:
+                if v_idx not in user_set:
+                    continue
+
+                v_model_id = getattr(entities[v_idx], "model_id", None)
+                v_score = user_scores[v_idx]
+
+                similarity = 1.0 - (abs(u_score - v_score) / score_range)
+                edge_similarities.append(float(np.clip(similarity, 0.0, 1.0)))
+
+                if u_model_id == v_model_id:
+                    same_model_count += 1
+                edge_count += 1
+
+        if edge_count == 0:
+            return {
+                "edge_similarity": 0.0,
+                "random_similarity": 0.0,
+                "excess_similarity": 0.0,
+                "same_model_edge_fraction": 0.0,
+                "edge_count": 0,
+            }
+
+        edge_similarity = float(np.mean(edge_similarities))
+
+        rng = np.random.default_rng(123)
+        sampled_pair_count = min(5000, max(1000, edge_count))
+        random_similarities = []
+        user_scores_list = [user_scores[idx] for idx in user_indices]
+        n_users = len(user_scores_list)
+
+        if n_users > 1:
+            for _ in range(sampled_pair_count):
+                i = int(rng.integers(0, n_users))
+                j = int(rng.integers(0, n_users - 1))
+                if j >= i:
+                    j += 1
+                similarity = 1.0 - (abs(user_scores_list[i] - user_scores_list[j]) / score_range)
+                random_similarities.append(float(np.clip(similarity, 0.0, 1.0)))
+
+        random_similarity = float(np.mean(random_similarities)) if random_similarities else 0.0
+
+        return {
+            "edge_similarity": edge_similarity,
+            "random_similarity": random_similarity,
+            "excess_similarity": edge_similarity - random_similarity,
+            "same_model_edge_fraction": float(same_model_count / edge_count),
+            "edge_count": edge_count,
+        }
 
     def get_survey_results(self) -> list[dict[str, Any]]:
         """Returns the results of the surveys."""
@@ -95,14 +245,23 @@ class SimEngine(engine_lib.Engine):
             # Assign remaining entities
             remaining_indices = [i for i in range(n_entities) if i not in news_source_indices]
             remaining_nodes = [n for n in sorted_nodes if n not in used_nodes]
-            
-            # Shuffle remaining indices to avoid correlation
-            np.random.shuffle(remaining_indices)
-            
-            for i, r_idx in enumerate(remaining_indices):
-                if i < len(remaining_nodes):
-                    node = remaining_nodes[i]
-                    node_to_entity_idx[node] = r_idx
+
+            if self._homophily:
+                homophily_assignment = self._assign_with_homophily(
+                    graph=G,
+                    remaining_nodes=remaining_nodes,
+                    remaining_indices=remaining_indices,
+                    entities=entities,
+                )
+                node_to_entity_idx.update(homophily_assignment)
+            else:
+                # Shuffle remaining indices to avoid correlation
+                np.random.shuffle(remaining_indices)
+
+                for i, r_idx in enumerate(remaining_indices):
+                    if i < len(remaining_nodes):
+                        node = remaining_nodes[i]
+                        node_to_entity_idx[node] = r_idx
             
             # Build social graph from G edges
             for u, v in G.edges():
@@ -127,6 +286,8 @@ class SimEngine(engine_lib.Engine):
             
             # Clear G to free memory
             del G
+
+        self._homophily_metrics = self._compute_homophily_metrics(entities)
 
     def make_observation(
         self,
@@ -161,6 +322,9 @@ class SimEngine(engine_lib.Engine):
         thread_lengths = np.array([float(len(thread.content) + 2) for thread in relevant_threads])
         # Add 1 to normalize and prevent zero-length threads from having zero probability, and +1 more to ensure even very short threads have some chance of being selected.
         weights = thread_lengths
+
+        # Zero out weights for threads with more than 20 messages
+        weights[np.array([len(thread.content) > 20 for thread in relevant_threads])] = 0.0
 
         # Prevent self-replies
         for i, thread in enumerate(relevant_threads):
@@ -281,8 +445,23 @@ class SimEngine(engine_lib.Engine):
 
         steps = 0
         game_master = game_masters[0]
+
+        if self._entity_activity_probs is None:
+            self._initialize_social_context(entities)
+
+        if self._homophily_metrics is not None:
+            metrics = self._homophily_metrics
+            print(
+                "Homophily metrics: "
+                f"edge_similarity={metrics['edge_similarity']:.4f}, "
+                f"random_similarity={metrics['random_similarity']:.4f}, "
+                f"excess_similarity={metrics['excess_similarity']:.4f}, "
+                f"same_model_edge_fraction={metrics['same_model_edge_fraction']:.4f}, "
+                f"edges={metrics['edge_count']}"
+            )
+
         with tqdm(total=max_steps, disable=not verbose, desc="Game Steps") as pbar:
-            while not self.terminate(game_master) and steps < max_steps:
+            while not self.terminate(game_master) and steps <= max_steps:
                 if start_time is not None and duration is not None:
                     if time.time() - start_time > duration:
                         if verbose:
@@ -309,6 +488,8 @@ class SimEngine(engine_lib.Engine):
                         'results': results
                     })
                     print(f"--- Survey Completed ---\n")
+                    if steps == max_steps:
+                        break
 
                 # 10 observations for every action
                 for i in range(10):

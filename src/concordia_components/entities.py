@@ -74,7 +74,8 @@ class User(entity.EntityWithLogging):
                  model_id: int = 0,
                  context: list[dict[str, str]] = None,
                  action_classifier = None,
-                 logs: dict[str, Any] = None
+                 logs: dict[str, Any] = None,
+                 initial_opinion: dict[str, float] = None
                  ):
         """Initialize the user."""
         self._model = model
@@ -86,6 +87,7 @@ class User(entity.EntityWithLogging):
         self._max_messages = 50
         self._max_length = 4096
         self._pending_prompt = None
+        self._initial_opinion = initial_opinion
 
     @override
     @functools.cached_property
@@ -120,7 +122,7 @@ class User(entity.EntityWithLogging):
         """Returns the entity's intended action given the action spec."""
         prompt = self.get_prompt(action_spec)
         response = self._model.sample_text(prompt=prompt, max_tokens=200)
-        print(f"Entity {self._name} generated response: {response}", flush=True)
+        print(f"Entity {self._name} generated response: {response}")
         return self.complete_action(response)
 
     @override

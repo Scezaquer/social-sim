@@ -238,6 +238,7 @@ class UnslothLora(language_model.LanguageModel):
       unsloth_language_model: UnslothLanguageModel | None = None,
       **kwargs: Any,
   ):
+    self.lora_path = lora_path
     if unsloth_language_model is not None:
         self._base_model = unsloth_language_model
     else:

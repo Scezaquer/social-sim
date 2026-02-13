@@ -22,6 +22,16 @@ def get_unique_name(used_names):
 import os
 from concordia_components.optimized_engine import OptimizedSimEngine
 
+def load_questions_and_options(file_path, question_number):
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    
+    data = data[question_number]
+    question = data['question']
+    options = data["distributions"][0].keys()
+    model_probabilities = data['distributions']
+    return question, options, model_probabilities
+
 if __name__ == "__main__":
     # Fix paths to be workspace relative
     WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -31,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--loras_path", type=str, help="Path to the LoRA models directory")
     parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
     parser.add_argument("--random_graph", action='store_true', help="Use a random graph instead of powerlaw cluster graph")
+    parser.add_argument("--homophily", action='store_true', help="Assign users to graph nodes with homophily based on initial survey opinions")
     parser.add_argument("--survey_output", type=str, default="survey_results.json", help="Path to save survey results")
     parser.add_argument("--array_id", type=int, default=0, help="Array index for job differentiation")
     parser.add_argument("--job_id", type=int, default=0, help="Job ID for logging purposes")
@@ -45,10 +56,11 @@ if __name__ == "__main__":
     NUM_ENTITIES = 1_000
     VLLM_MODEL_NAME = "marcelbinz/Llama-3.1-Minitaur-8B"
     PREFIX_CACHING = False
+    QUESTIONS_FILE_PATH = "divisive_questions_probabilities.json"
 
     # model = NoLanguageModel()
-    print(
-        f"Initializing Unsloth model: {VLLM_MODEL_NAME}")
+    print(f"Initializing Unsloth model: {VLLM_MODEL_NAME}")
+
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
         load_in_4bit=False,
@@ -79,7 +91,6 @@ if __name__ == "__main__":
     # Finalize model for inference after all adapters are loaded
     base_model.finalize_inference()
 
-    instances = None  # Replace with actual list of prefab_lib.InstanceConfig
     config = None  # Replace with actual config
     entities = []  # Replace with actual list of entity_lib.Entity
 
@@ -127,10 +138,12 @@ if __name__ == "__main__":
     classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
     print(f"Using classifier template: {classifier_template}")
 
+    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=0)
+
     survey_config = {
         'interval': 250,
-        'question': "Would you rather vote for Donald Trump or Kamala Harris? You may only answer with 'Donald Trump' or 'Kamala Harris'.",
-        'options': ['Donald Trump', 'Kamala Harris']
+        'question': question,
+        'options': options
     }
 
     if args.random_graph:
@@ -139,7 +152,12 @@ if __name__ == "__main__":
         G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=args.array_id)
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
-    sim_engine = SimEngine(survey_config=survey_config, graph=G)
+    sim_engine = SimEngine(
+        survey_config=survey_config,
+        graph=G,
+        homophily=args.homophily,
+        model_probabilities=model_probabilities,
+    )
 
     runnable_simulation = SocialMediaSim(
         config=config,
