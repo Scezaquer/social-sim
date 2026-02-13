@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 import networkx as nx
 import time
+import re
 
 class SimEngine(engine_lib.Engine):
     """Engine interface."""
@@ -18,7 +19,7 @@ class SimEngine(engine_lib.Engine):
                  graph: Any = None,
                  survey_config: dict[str, Any] = None,
                  homophily: bool = False,
-                 model_probabilities: list[dict[str, float]] | None = None,
+                 model_probabilities: list[dict[str, float]] | dict[str, dict[str, float]] | None = None,
                  ):
         self._threads = [] if threads is None else threads
         self._entity_activity_probs = None
@@ -39,7 +40,23 @@ class SimEngine(engine_lib.Engine):
             return {}
 
         scores = {}
-        for model_id, distribution in enumerate(self._model_probabilities):
+        if isinstance(self._model_probabilities, dict):
+            iterable = self._model_probabilities.items()
+        else:
+            iterable = enumerate(self._model_probabilities)
+
+        for model_key, distribution in iterable:
+            if not isinstance(distribution, dict):
+                continue
+
+            if isinstance(model_key, int):
+                model_id = model_key
+            else:
+                match = re.search(r"(\d+)$", str(model_key))
+                if match is None:
+                    continue
+                model_id = int(match.group(1))
+
             probs = np.array(list(distribution.values()), dtype=float)
             total = probs.sum()
             if total <= 0:
