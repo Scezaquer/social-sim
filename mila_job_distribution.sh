@@ -14,7 +14,7 @@ export UNSLOTH_CACHE_DIR=$SLURM_TMPDIR/unsloth-cache
 
 python -u src/main_unsloth.py \
      --loras_path $SCRATCH/marcelbinz \
-      --survey_output survey_ai_copyright_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json \
+      --survey_output survey_distribution_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json \
       --array_id ${SLURM_ARRAY_TASK_ID} \
       --job_id ${SLURM_JOB_ID} \
       --homophily \
