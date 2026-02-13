@@ -11,6 +11,7 @@ import transformers
 import names
 import json
 import networkx as nx
+import random
 
 def get_unique_name(used_names):
     while True:
@@ -45,6 +46,14 @@ if __name__ == "__main__":
     parser.add_argument("--survey_output", type=str, default="survey_results.json", help="Path to save survey results")
     parser.add_argument("--array_id", type=int, default=0, help="Array index for job differentiation")
     parser.add_argument("--job_id", type=int, default=0, help="Job ID for logging purposes")
+    parser.add_argument("--question_number", type=int, default=0, help="Index of the question to load from the questions file")
+    parser.add_argument(
+        "--tweet_files",
+        type=str,
+        nargs="*",
+        default=["trump_tweets.json"],
+        help="Tweet JSON files to load as news feeds (space-separated).",
+    )
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -125,10 +134,29 @@ if __name__ == "__main__":
     # news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
     # entities.append(news_entity3)
 
-    with open(os.path.join(WORKSPACE_ROOT, 'trump_tweets.json'), 'r') as f:
-        news_feed = json.load(f)
-    news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
-    entities.append(news_entity)
+    generic_news_source_names = [
+        "Global News Network",
+        "World News Desk",
+        "The Daily Bulletin",
+        "National News Service",
+        "International News Wire",
+        "Civic News Report",
+        "Morning News Network",
+        "Public Affairs Daily",
+    ]
+
+    for tweet_file in args.tweet_files:
+        tweet_file_path = tweet_file
+        if not os.path.isabs(tweet_file_path):
+            tweet_file_path = os.path.join(WORKSPACE_ROOT, tweet_file_path)
+
+        with open(tweet_file_path, 'r') as f:
+            news_feed = json.load(f)
+
+        source_name = random.choice(generic_news_source_names)
+        news_entity = NewsSource(name=source_name, news_feed=news_feed)
+        entities.append(news_entity)
+        print(f"Loaded news feed from: {tweet_file_path}")
 
     print("Entity distribution among models:")
     for model_name, count in model_counts.items():
@@ -138,7 +166,9 @@ if __name__ == "__main__":
     classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
     print(f"Using classifier template: {classifier_template}")
 
-    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=0)
+    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=args.question_number)
+
+    print(f"Loaded question: {question}")
 
     survey_config = {
         'interval': 250,
