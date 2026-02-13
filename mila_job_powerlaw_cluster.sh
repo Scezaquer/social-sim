@@ -11,4 +11,11 @@ module load python/3.10
 source $HOME/ENV/bin/activate
 export HF_HUB_CACHE=$SCRATCH/HF-cache
 export UNSLOTH_CACHE_DIR=$SLURM_TMPDIR/unsloth-cache
-python -u src/main_unsloth.py --loras_path $SCRATCH/marcelbinz --survey_output survey_powerlaw_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json  --array_id ${SLURM_ARRAY_TASK_ID} --job_id ${SLURM_JOB_ID}
+python -u src/main_unsloth.py \
+    --loras_path $SCRATCH/marcelbinz \
+    --survey_output survey_powerlaw_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json  \
+    --array_id ${SLURM_ARRAY_TASK_ID} \
+    --job_id ${SLURM_JOB_ID} \
+    --homophily \
+    --question_number 28 \
+    --tweet_files ai_copyright_tweets.json

@@ -48,6 +48,13 @@ if __name__ == "__main__":
     parser.add_argument("--job_id", type=int, default=0, help="Job ID for logging purposes")
     parser.add_argument("--question_number", type=int, default=0, help="Index of the question to load from the questions file")
     parser.add_argument(
+        "--proportions",
+        type=float,
+        nargs="+",
+        default=None,
+        help="Optional list of model weights/proportions (e.g., --proportions 1 2 3 ...). Must match number of LoRA models.",
+    )
+    parser.add_argument(
         "--tweet_files",
         type=str,
         nargs="*",
@@ -77,10 +84,11 @@ if __name__ == "__main__":
 
     # Number of total actions from each cluster in the training data
     # We create agents according to these proportions
-    proportions = np.array([80578, 170583, 2225632, 107699, 257398, 406647, 1014601, 45071, 73774,
-                            4668716, 116932, 304804, 104602, 814539, 70434, 32923, 149759, 422736,
-                            900057, 43742, 62087, 739085, 164314, 212932, 491830])
-    proportions = proportions / proportions.sum()
+    default_proportions = np.array([
+        80578, 170583, 2225632, 107699, 257398, 406647, 1014601, 45071, 73774,
+        4668716, 116932, 304804, 104602, 814539, 70434, 32923, 149759, 422736,
+        900057, 43742, 62087, 739085, 164314, 212932, 491830,
+    ], dtype=float)
 
     models = []
 
@@ -96,6 +104,28 @@ if __name__ == "__main__":
         )
         models.append(model_i)
         print(f"LoRA model {i} initialized successfully!")
+
+    if args.proportions is not None:
+        proportions = np.array(args.proportions, dtype=float)
+        if len(proportions) != len(models):
+            raise ValueError(
+                f"Expected {len(models)} proportions, got {len(proportions)}. "
+                "Provide one value per LoRA model."
+            )
+        if np.any(proportions < 0):
+            raise ValueError("All proportions must be non-negative.")
+        if proportions.sum() == 0:
+            raise ValueError("Sum of proportions must be greater than 0.")
+        proportions = proportions / proportions.sum()
+        print("Using user-provided proportions.")
+    else:
+        if len(default_proportions) != len(models):
+            raise ValueError(
+                f"Default proportions length ({len(default_proportions)}) does not match "
+                f"number of models ({len(models)})."
+            )
+        proportions = default_proportions / default_proportions.sum()
+        print("Using built-in default proportions.")
     
     # Finalize model for inference after all adapters are loaded
     base_model.finalize_inference()
@@ -156,7 +186,7 @@ if __name__ == "__main__":
         source_name = random.choice(generic_news_source_names)
         news_entity = NewsSource(name=source_name, news_feed=news_feed)
         entities.append(news_entity)
-        print(f"Loaded news feed from: {tweet_file_path}")
+        print(f"Loaded news feed from: {tweet_file_path}. Assigned source name: {source_name}")
 
     print("Entity distribution among models:")
     for model_name, count in model_counts.items():
