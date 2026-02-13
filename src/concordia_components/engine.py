@@ -68,7 +68,7 @@ class SimEngine(engine_lib.Engine):
             undirected_graph = graph
 
         graph_subset = undirected_graph.subgraph(remaining_nodes).copy()
-        positions = nx.spring_layout(graph_subset, seed=42, dim=1)
+        positions = nx.spring_layout(graph_subset, seed=42, dim=2)
         ordered_nodes = sorted(
             remaining_nodes,
             key=lambda node: float(np.ravel(np.asarray(positions.get(node, [0.0])))[0])
