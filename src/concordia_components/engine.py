@@ -34,6 +34,14 @@ class SimEngine(engine_lib.Engine):
         self._homophily = homophily
         self._model_probabilities = model_probabilities
         self._homophily_metrics = None
+        self._visualizer_data = {
+            "nodes": [],
+            "edges": [],
+            "threads": [],
+            "observations": [],
+            "survey_results": [],
+            "news_posts": []
+        }
 
     def _compute_model_opinion_scores(self) -> dict[int, float]:
         if not self._model_probabilities:
@@ -200,6 +208,13 @@ class SimEngine(engine_lib.Engine):
         """Returns the results of the surveys."""
         return self._survey_results
 
+    def get_visualizer_data(self) -> dict[str, Any]:
+        """Returns the data needed for the visualizer."""
+        self._visualizer_data["threads"] = [
+            {"id": t.id, "messages": t.content} for t in self._threads
+        ]
+        return self._visualizer_data
+
     def _initialize_social_context(self, entities: Sequence[entity_lib.Entity]):
         n_entities = len(entities)
         entity_names = [e.name for e in entities]
@@ -304,13 +319,29 @@ class SimEngine(engine_lib.Engine):
             # Clear G to free memory
             del G
 
+        # Populate visualizer data for nodes and edges
+        for i, entity in enumerate(entities):
+            self._visualizer_data["nodes"].append({
+                "id": i,
+                "name": entity.name,
+                "type": "NewsSource" if isinstance(entity, NewsSource) else "User",
+                "model_id": getattr(entity, "model_id", None)
+            })
+        for u_idx, neighbors in enumerate(self._social_graph):
+            for v_idx in neighbors:
+                self._visualizer_data["edges"].append({
+                    "source": u_idx,
+                    "target": v_idx
+                })
+
         self._homophily_metrics = self._compute_homophily_metrics(entities)
 
     def make_observation(
         self,
         game_master: entity_lib.Entity,
         entity: entity_lib.Entity,
-        make_new_thread: bool = True
+        make_new_thread: bool = True,
+        step: int = 0
     ) -> Thread:
         """Make an observation for an entity."""
         
@@ -318,17 +349,34 @@ class SimEngine(engine_lib.Engine):
             new_thread = Thread(id=len(self._threads), content=[])
             self._threads.append(new_thread)
             entity.observe(new_thread)
+            self._visualizer_data["observations"].append({
+                "step": step,
+                "entity_name": entity.name,
+                "thread_id": new_thread.id
+            })
             return new_thread
 
         if make_new_thread and np.random.rand() < 0.3:
             new_thread = Thread(id=len(self._threads), content=[])
             self._threads.append(new_thread)
             entity.observe(new_thread)
+            self._visualizer_data["observations"].append({
+                "step": step,
+                "entity_name": entity.name,
+                "thread_id": new_thread.id
+            })
             return new_thread
 
         if not self._threads:
             if make_new_thread:
-                self._threads.append(Thread(id=0, content=[]))
+                new_thread = Thread(id=0, content=[])
+                self._threads.append(new_thread)
+                self._visualizer_data["observations"].append({
+                    "step": step,
+                    "entity_name": entity.name,
+                    "thread_id": new_thread.id
+                })
+                return new_thread
             else:
                 return None
 
@@ -383,6 +431,11 @@ class SimEngine(engine_lib.Engine):
             new_thread = Thread(id=len(self._threads), content=[])
             self._threads.append(new_thread)
             entity.observe(new_thread)
+            self._visualizer_data["observations"].append({
+                "step": step,
+                "entity_name": entity.name,
+                "thread_id": new_thread.id
+            })
             return new_thread
         else:
             return None
@@ -390,6 +443,11 @@ class SimEngine(engine_lib.Engine):
         random_thread_idx = np.random.choice(len(relevant_threads), p=weights)
         random_thread = relevant_threads[random_thread_idx]
         entity.observe(random_thread)
+        self._visualizer_data["observations"].append({
+            "step": step,
+            "entity_name": entity.name,
+            "thread_id": random_thread.id
+        })
         return random_thread
 
     def next_acting(
@@ -504,6 +562,11 @@ class SimEngine(engine_lib.Engine):
                         'question': question,
                         'results': results
                     })
+                    self._visualizer_data["survey_results"].append({
+                        'step': steps,
+                        'question': question,
+                        'results': results
+                    })
                     print(f"--- Survey Completed ---\n")
                     if steps == max_steps:
                         break
@@ -514,9 +577,17 @@ class SimEngine(engine_lib.Engine):
                         game_master, entities)
                     
                     make_new_thread = ( i == 9 )  # Only create new thread on the last observation
-                    observation = self.make_observation(game_master, acting_entity, make_new_thread)
+                    observation = self.make_observation(game_master, acting_entity, make_new_thread, step=steps)
                 action = acting_entity.act(action_spec)
-                observation.content.append({'role': acting_entity.name, 'content': action})
+                observation.content.append({'role': acting_entity.name, 'content': action, 'step': steps})
+                
+                if isinstance(acting_entity, NewsSource):
+                    self._visualizer_data["news_posts"].append({
+                        "step": steps,
+                        "thread_id": observation.id,
+                        "content": action
+                    })
+                
                 self.resolve(game_master, action)
                 game_master = self.next_game_master(game_master, game_masters)
                 steps += 1

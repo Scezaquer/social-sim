@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import glob
+import re
 import numpy as np
 import matplotlib.pyplot as plt
 from tabulate import tabulate
@@ -45,11 +46,23 @@ def load_data(file_path, target_option=None):
 def main():
     args = parse_args()
     folder = args.folder
-    
-    powerlaw_files = sorted(glob.glob(os.path.join(folder, "survey_powerlaw*.json")))
-    random_files = sorted(glob.glob(os.path.join(folder, "survey_random*.json")))
-    
-    if not powerlaw_files and not random_files:
+
+    all_survey_files = sorted(glob.glob(os.path.join(folder, "survey_*.json")))
+    group_pattern = re.compile(r"^survey_([^_]+)_(\d+(?:_\d+)*)\.json$")
+
+    grouped_files = {}
+    for file_path in all_survey_files:
+        filename = os.path.basename(file_path)
+        match = group_pattern.match(filename)
+        if not match:
+            continue
+        group_name = match.group(1)
+        grouped_files.setdefault(group_name, []).append(file_path)
+
+    for group_name in grouped_files:
+        grouped_files[group_name] = sorted(grouped_files[group_name])
+
+    if not grouped_files:
         print(f"No matching files found in {folder}")
         return
 
@@ -103,48 +116,77 @@ def main():
     # First determine target option from first available file
     target_option = args.target_option
     if not target_option:
-        first_file = (powerlaw_files + random_files)[0]
+        first_file = grouped_files[next(iter(grouped_files))][0]
         _, _, target_option = load_data(first_file)
     
     print(f"Analyzing percentages for option: {target_option}")
 
-    pl_steps, pl_stats, _ = process_group(powerlaw_files, target_option)
-    rd_steps, rd_stats, _ = process_group(random_files, target_option)
+    group_results = {}
+    for group_name, files in grouped_files.items():
+        steps, stats, _ = process_group(files, target_option)
+        if steps is not None and stats is not None:
+            group_results[group_name] = (steps, stats)
+
+    if not group_results:
+        print(f"No valid survey groups found in {folder}")
+        return
 
     # Prepare table data
     table_data = []
-    
-    # We'll use pl_steps or rd_steps (assuming they are the same)
-    steps = pl_steps if pl_steps is not None else rd_steps
+
+    # Use the longest available step list as the reference axis
+    steps = max((result[0] for result in group_results.values()), key=len)
     for i, step in enumerate(steps):
         row = [step]
-        if pl_stats:
-            row.extend([f"{pl_stats[0][i]:.2f}", f"{pl_stats[1][i]:.2f}", f"{pl_stats[4][i]:.2f}", f"{pl_stats[2][i]:.2f}", f"{pl_stats[3][i]:.2f}"])
-        else:
-            row.extend(["-", "-", "-", "-", "-"])
-            
-        if rd_stats:
-            row.extend([f"{rd_stats[0][i]:.2f}", f"{rd_stats[1][i]:.2f}", f"{rd_stats[4][i]:.2f}", f"{rd_stats[2][i]:.2f}", f"{rd_stats[3][i]:.2f}"])
-        else:
-            row.extend(["-", "-", "-", "-", "-"])
+        for group_name in sorted(group_results.keys()):
+            group_steps, group_stats = group_results[group_name]
+            if i < len(group_steps):
+                row.extend([
+                    f"{group_stats[0][i]:.2f}",
+                    f"{group_stats[1][i]:.2f}",
+                    f"{group_stats[4][i]:.2f}",
+                    f"{group_stats[2][i]:.2f}",
+                    f"{group_stats[3][i]:.2f}",
+                ])
+            else:
+                row.extend(["-", "-", "-", "-", "-"])
         table_data.append(row)
 
-    headers = ["Step", "PL Mean", "PL CI", "PL Var", "PL Max", "PL Min", "RD Mean", "RD CI", "RD Var", "RD Max", "RD Min"]
+    headers = ["Step"]
+    for group_name in sorted(group_results.keys()):
+        headers.extend([
+            f"{group_name} Mean",
+            f"{group_name} CI",
+            f"{group_name} Var",
+            f"{group_name} Max",
+            f"{group_name} Min",
+        ])
+
     print("\nSurvey Results Comparison (%)")
     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # Plotting
     plt.figure(figsize=(12, 7))
-    
-    if pl_stats:
-        means, cis, maxs, mins, vars = pl_stats
-        plt.errorbar(pl_steps, means, yerr=cis, fmt='-o', label='Powerlaw Group', color='blue', capsize=5)
-        plt.fill_between(pl_steps, mins, maxs, color='blue', alpha=0.1, label='Powerlaw Min-Max')
 
-    if rd_stats:
-        means, cis, maxs, mins, vars = rd_stats
-        plt.errorbar(rd_steps, means, yerr=cis, fmt='-s', label='Random Group', color='red', capsize=5)
-        plt.fill_between(rd_steps, mins, maxs, color='red', alpha=0.1, label='Random Min-Max')
+    markers = ['o', 's', '^', 'D', 'v', 'P', 'X', '*', '<', '>']
+    color_cycle = plt.rcParams['axes.prop_cycle'].by_key().get('color', ['blue', 'red', 'green', 'purple'])
+
+    for idx, group_name in enumerate(sorted(group_results.keys())):
+        group_steps, group_stats = group_results[group_name]
+        means, cis, maxs, mins, vars = group_stats
+        color = color_cycle[idx % len(color_cycle)]
+        marker = markers[idx % len(markers)]
+
+        plt.errorbar(
+            group_steps,
+            means,
+            yerr=cis,
+            fmt=f'-{marker}',
+            label=f'{group_name} Group',
+            color=color,
+            capsize=5,
+        )
+        plt.fill_between(group_steps, mins, maxs, color=color, alpha=0.1, label=f'{group_name} Min-Max')
 
     plt.title(f"Comparison of Survey Evolution (Option: {target_option})")
     plt.xlabel("Simulation Step")

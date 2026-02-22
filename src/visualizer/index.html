@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Simulation Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+    <div id="header">
+        <h1>Social Simulation Visualizer</h1>
+        <input type="file" id="fileInput" accept=".json">
+    </div>
+    
+    <div id="main-container">
+        <div id="left-panel">
+            <div class="panel">
+                <h2>Degree Distribution</h2>
+                <canvas id="degreeChart"></canvas>
+            </div>
+            <div class="panel">
+                <h2>Survey Results Over Time</h2>
+                <div class="controls">
+                    <label><input type="checkbox" id="toggleNewsLines" checked> Show News Posts</label>
+                </div>
+                <canvas id="surveyChart"></canvas>
+            </div>
+            <div class="panel">
+                <h2>Message Reach</h2>
+                <div id="messageReachContainer">
+                    <table id="messageReachTable">
+                        <thead>
+                            <tr>
+                                <th>Thread ID</th>
+                                <th>Author</th>
+                                <th>Message</th>
+                                <th>Views</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="center-panel">
+            <div class="panel" id="graph-panel">
+                <h2>Social Graph</h2>
+                <div class="controls">
+                    <label for="timeSlider">Timestep: <span id="timeValue">0</span></label>
+                    <input type="range" id="timeSlider" min="0" max="0" value="0" step="1">
+                    <label><input type="checkbox" id="toggleChangedMinds"> Highlight Changed Minds</label>
+                </div>
+                <div id="graph-container"></div>
+            </div>
+        </div>
+        
+        <div id="right-panel">
+            <div class="panel" id="node-details">
+                <h2>Node Details</h2>
+                <div id="node-info">Select a node to see details.</div>
+                <div id="node-threads"></div>
+                <div id="node-messages"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

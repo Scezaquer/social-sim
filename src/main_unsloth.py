@@ -258,3 +258,8 @@ if __name__ == "__main__":
     with open(output_path, 'w') as f:
         json.dump(threads_to_save, f, indent=4)
     print(f"Threads saved to {output_path}")
+
+    visualizer_data_path = os.path.join(WORKSPACE_ROOT, f"visualizer_data_{args.job_id}_{args.array_id}.json")
+    with open(visualizer_data_path, 'w') as f:
+        json.dump(sim_engine.get_visualizer_data(), f, indent=4)
+    print(f"Visualizer data saved to {visualizer_data_path}")
