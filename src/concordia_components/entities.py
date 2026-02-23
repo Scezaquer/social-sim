@@ -75,7 +75,8 @@ class User(entity.EntityWithLogging):
                  context: list[dict[str, str]] = None,
                  action_classifier = None,
                  logs: dict[str, Any] = None,
-                 initial_opinion: dict[str, float] = None
+                 initial_opinion: dict[str, float] = None,
+                 add_survey_to_context: bool = False
                  ):
         """Initialize the user."""
         self._model = model
@@ -88,6 +89,7 @@ class User(entity.EntityWithLogging):
         self._max_length = 4096
         self._pending_prompt = None
         self._initial_opinion = initial_opinion
+        self._add_survey_to_context = add_survey_to_context
 
     @override
     @functools.cached_property
@@ -104,13 +106,20 @@ class User(entity.EntityWithLogging):
         if len(self._context) > self._max_messages:
             self._context = self._context[-self._max_messages:]
         
-        while True:
+        while len(self._context) > 0:
             prompt = self._model.apply_chat_template(self._context, add_generation_prompt=True)
             if len(prompt) < self._max_length:
-                break
-            self._context = self._context[5:]
+                return prompt
+            
+            if len(self._context) > 5:
+                self._context = self._context[5:]
+            elif len(self._context) > 1:
+                self._context = [self._context[-1]]
+            else:
+                return prompt
 
-        return prompt
+        self._context = [{"role": "system", "content": "### New Thread ###\nWrite a post for a new conversation thread."}]
+        return self._model.apply_chat_template(self._context, add_generation_prompt=True)
 
     def complete_action(self, response: str) -> str:
         """Completes the action with the generated response."""
@@ -143,12 +152,20 @@ class User(entity.EntityWithLogging):
             temp_context = temp_context[-self._max_messages:]
         
         temp_context.append({"role": "user", "content": question})
-        while True:
+        while len(temp_context) > 0:
             prompt = self._model.apply_chat_template(temp_context, add_generation_prompt=True)
             if len(prompt) < self._max_length:
                 break
 
-            temp_context = temp_context[5:]
+            if len(temp_context) > 5:
+                temp_context = temp_context[5:]
+            elif len(temp_context) > 1:
+                temp_context = [temp_context[-1]]
+            else:
+                break
 
         idx, choice, _ = self._model.sample_choice(prompt=prompt, responses=options)
+        if self._add_survey_to_context:
+            self._context.append({"role": "user", "content": question})
+            self._context.append({"role": "assistant", "content": choice})
         return choice

@@ -52,6 +52,37 @@ body {
     border-radius: 5px;
     padding: 10px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.focusable {
+    cursor: pointer;
+}
+
+.focusable:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.focused {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    cursor: default;
+    height: 100%;
+}
+
+.focused:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.focused canvas {
+    flex: 1;
+    max-height: 100%;
+}
+
+.focused #messageReachContainer {
+    flex: 1;
+    max-height: none;
 }
 
 .panel h2 {
@@ -72,6 +103,7 @@ body {
     border: 1px solid #ccc;
     background-color: #fafafa;
     position: relative;
+    min-height: 300px;
 }
 
 .controls {
@@ -119,6 +151,24 @@ th {
 .thread-item, .message-item {
     border-bottom: 1px solid #eee;
     padding: 5px 0;
+}
+
+.clickable {
+    cursor: pointer;
+    color: #0066cc;
+}
+
+.clickable:hover {
+    text-decoration: underline;
+}
+
+.message-cell {
+    cursor: pointer;
+    color: #0066cc;
+}
+
+.message-cell:hover {
+    text-decoration: underline;
 }
 
 .thread-item:last-child, .message-item:last-child {

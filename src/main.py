@@ -31,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_time", type=float, help="Start time of the job")
     parser.add_argument("--loras_path", type=str, help="Path to the LoRA models directory")
     parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
+    parser.add_argument("--add_survey_to_context", action="store_true", help="Add survey questions and responses to the context of the models")
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -88,7 +89,7 @@ if __name__ == "__main__":
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
-        user = User(name=name, model=model, model_id=model_id)
+        user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context)
         entities.append(user)
 
     with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:

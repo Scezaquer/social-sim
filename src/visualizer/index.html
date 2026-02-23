@@ -17,18 +17,29 @@
     
     <div id="main-container">
         <div id="left-panel">
-            <div class="panel">
+            <div class="panel focusable" id="degree-panel" onclick="focusPanel('degree-panel')">
                 <h2>Degree Distribution</h2>
                 <canvas id="degreeChart"></canvas>
             </div>
-            <div class="panel">
+            <div class="panel focusable" id="powerlaw-panel" onclick="focusPanel('powerlaw-panel')">
+                <h2>Power-Law Degree Distribution</h2>
+                <canvas id="powerlawChart"></canvas>
+            </div>
+            <div class="panel focusable" id="survey-panel" onclick="focusPanel('survey-panel')">
                 <h2>Survey Results Over Time</h2>
+                <div id="surveyQuestion" style="font-style: italic; margin-bottom: 10px;"></div>
                 <div class="controls">
                     <label><input type="checkbox" id="toggleNewsLines" checked> Show News Posts</label>
+                    <label><input type="radio" name="surveyYAxis" value="absolute" checked> Absolute Count</label>
+                    <label><input type="radio" name="surveyYAxis" value="percentage"> Percentage (%)</label>
                 </div>
                 <canvas id="surveyChart"></canvas>
             </div>
-            <div class="panel">
+            <div class="panel focusable" id="opinion-changes-panel" onclick="focusPanel('opinion-changes-panel')">
+                <h2>Opinion Changes Distribution</h2>
+                <canvas id="opinionChangesChart"></canvas>
+            </div>
+            <div class="panel focusable" id="reach-panel" onclick="focusPanel('reach-panel')">
                 <h2>Message Reach</h2>
                 <div id="messageReachContainer">
                     <table id="messageReachTable">
@@ -47,12 +58,16 @@
         </div>
         
         <div id="center-panel">
-            <div class="panel" id="graph-panel">
+            <div class="panel focusable focused" id="graph-panel" onclick="focusPanel('graph-panel')">
                 <h2>Social Graph</h2>
                 <div class="controls">
                     <label for="timeSlider">Timestep: <span id="timeValue">0</span></label>
                     <input type="range" id="timeSlider" min="0" max="0" value="0" step="1">
+                    <label><input type="checkbox" id="toggleLatestVoteColor" checked> Color by Latest Vote</label>
                     <label><input type="checkbox" id="toggleChangedMinds"> Highlight Changed Minds</label>
+                    <label><input type="checkbox" id="toggleOpinionChangeColor"> Color by Opinion Changes</label>
+                    <label><input type="checkbox" id="toggleNodeSize"> Size by Messages Written</label>
+                    <label><input type="checkbox" id="toggleNodeSizeViews"> Size by Cumulative Views</label>
                 </div>
                 <div id="graph-container"></div>
             </div>

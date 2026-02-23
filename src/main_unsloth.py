@@ -61,6 +61,10 @@ if __name__ == "__main__":
         default=["trump_tweets.json"],
         help="Tweet JSON files to load as news feeds (space-separated).",
     )
+    parser.add_argument("--add_survey_to_context", action="store_true", help="Add survey questions and responses to the context of the models")
+    parser.add_argument("--base_model", type=str, default="marcelbinz/Llama-3.1-Minitaur-8B", help="Base model to use")
+    parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
+
     args = parser.parse_args()
 
     print("Torch:", torch.__version__)
@@ -70,7 +74,7 @@ if __name__ == "__main__":
     print("Compute capability:", torch.cuda.get_device_capability(0))
 
     NUM_ENTITIES = 1_000
-    VLLM_MODEL_NAME = "marcelbinz/Llama-3.1-Minitaur-8B"
+    VLLM_MODEL_NAME = args.base_model
     PREFIX_CACHING = False
     QUESTIONS_FILE_PATH = "divisive_questions_probabilities.json"
 
@@ -92,18 +96,22 @@ if __name__ == "__main__":
 
     models = []
 
-    for i in range(25):
-        # lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
-        lora_path = os.path.join(args.loras_path, f"Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}")
-        # lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
-        print(f"Loading LoRA model from: {lora_path}")
-        model_i = UnslothLora(
-            model_name=VLLM_MODEL_NAME,
-            lora_path=lora_path,
-            unsloth_language_model=base_model,
-        )
-        models.append(model_i)
-        print(f"LoRA model {i} initialized successfully!")
+    if args.loras_path:
+        for i in range(25):
+            # lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+            lora_path = os.path.join(args.loras_path, f"Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}")
+            # lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+            print(f"Loading LoRA model from: {lora_path}")
+            model_i = UnslothLora(
+                model_name=VLLM_MODEL_NAME,
+                lora_path=lora_path,
+                unsloth_language_model=base_model,
+            )
+            models.append(model_i)
+            print(f"LoRA model {i} initialized successfully!")
+    else:
+        print("No LoRA path provided. Using base model for all agents.")
+        models.append(base_model)
 
     if args.proportions is not None:
         proportions = np.array(args.proportions, dtype=float)
@@ -119,13 +127,17 @@ if __name__ == "__main__":
         proportions = proportions / proportions.sum()
         print("Using user-provided proportions.")
     else:
-        if len(default_proportions) != len(models):
-            raise ValueError(
-                f"Default proportions length ({len(default_proportions)}) does not match "
-                f"number of models ({len(models)})."
-            )
-        proportions = default_proportions / default_proportions.sum()
-        print("Using built-in default proportions.")
+        if len(models) == 1:
+            proportions = np.array([1.0])
+            print("Using base model only.")
+        else:
+            if len(default_proportions) != len(models):
+                raise ValueError(
+                    f"Default proportions length ({len(default_proportions)}) does not match "
+                    f"number of models ({len(models)})."
+                )
+            proportions = default_proportions / default_proportions.sum()
+            print("Using built-in default proportions.")
     
     # Finalize model for inference after all adapters are loaded
     base_model.finalize_inference()
@@ -141,28 +153,8 @@ if __name__ == "__main__":
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
-        user = User(name=name, model=model, model_id=model_id)
+        user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context)
         entities.append(user)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'poilievre_tweets.json'), 'r') as f:
-    #     news_feed = json.load(f)
-    # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
-    # entities.append(news_entity)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets.json'), 'r') as f:
-    #     news_feed = json.load(f)
-    # news_entity = NewsSource(name="Global News Wire", news_feed=news_feed)
-    # entities.append(news_entity)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets2.json'), 'r') as f:
-    #     news_feed2 = json.load(f)
-    # news_entity2 = NewsSource(name="The Daily Chronicle", news_feed=news_feed2)
-    # entities.append(news_entity2)
-
-    # with open(os.path.join(WORKSPACE_ROOT, 'maduro_tweets3.json'), 'r') as f:
-    #     news_feed3 = json.load(f)
-    # news_entity3 = NewsSource(name="World Report", news_feed=news_feed3)
-    # entities.append(news_entity3)
 
     generic_news_source_names = [
         "Global News Network",
@@ -259,7 +251,11 @@ if __name__ == "__main__":
         json.dump(threads_to_save, f, indent=4)
     print(f"Threads saved to {output_path}")
 
-    visualizer_data_path = os.path.join(WORKSPACE_ROOT, f"visualizer_data_{args.job_id}_{args.array_id}.json")
+    if args.visualizer_output:
+        visualizer_data_path = args.visualizer_output
+    else:
+        visualizer_data_path = os.path.join(WORKSPACE_ROOT, f"visualizer_data_{args.job_id}_{args.array_id}.json")
+        
     with open(visualizer_data_path, 'w') as f:
         json.dump(sim_engine.get_visualizer_data(), f, indent=4)
     print(f"Visualizer data saved to {visualizer_data_path}")
