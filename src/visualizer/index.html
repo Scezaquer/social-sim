@@ -39,6 +39,43 @@
                 <h2>Opinion Changes Distribution</h2>
                 <canvas id="opinionChangesChart"></canvas>
             </div>
+            <div class="panel focusable" id="semantic-drift-panel" onclick="focusPanel('semantic-drift-panel')">
+                <h2>Global Semantic Drift</h2>
+                <canvas id="semanticDriftChart"></canvas>
+            </div>
+            <div class="panel focusable" id="influence-panel" onclick="focusPanel('influence-panel')">
+                <h2>Semantic Influence Graph</h2>
+                <div class="controls controls-wrap">
+                    <label for="influenceThreshold">Edge Threshold: <span id="influenceThresholdValue">0.05</span></label>
+                    <input type="range" id="influenceThreshold" min="0" max="100" value="5" step="1">
+                    <label for="influenceNodeLimit">Top Messages</label>
+                    <select id="influenceNodeLimit">
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                        <option value="400">400</option>
+                    </select>
+                </div>
+                <div id="influence-summary" class="info-banner">Load an enriched influence file to render semantic message influence.</div>
+                <div id="message-graph-container"></div>
+            </div>
+            <div class="panel focusable" id="impact-panel" onclick="focusPanel('impact-panel')">
+                <h2>Most Influential Messages</h2>
+                <div id="impactTableContainer">
+                    <table id="impactTable">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Author</th>
+                                <th>Step</th>
+                                <th>Impact</th>
+                                <th>Drift</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
             <div class="panel focusable" id="reach-panel" onclick="focusPanel('reach-panel')">
                 <h2>Message Reach</h2>
                 <div id="messageReachContainer">
@@ -79,6 +116,17 @@
                 <div id="node-info">Select a node to see details.</div>
                 <div id="node-threads"></div>
                 <div id="node-messages"></div>
+            </div>
+            <div class="panel" id="message-details-panel">
+                <h2>Message Influence Details</h2>
+                <div id="message-info">Select a message in the influence graph or ranking table.</div>
+                <div id="message-parents"></div>
+                <div id="message-children"></div>
+            </div>
+            <div class="panel" id="cascade-panel">
+                <h2>Cascade Tree</h2>
+                <div id="cascade-summary">Select a message to inspect its cascade.</div>
+                <div id="cascade-tree-container"></div>
             </div>
         </div>
     </div>

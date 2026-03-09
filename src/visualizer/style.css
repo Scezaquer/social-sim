@@ -85,6 +85,13 @@ body {
     max-height: none;
 }
 
+.focused #impactTableContainer,
+.focused #message-graph-container,
+.focused #cascade-tree-container {
+    flex: 1;
+    max-height: none;
+}
+
 .panel h2 {
     margin-top: 0;
     font-size: 1.2em;
@@ -113,6 +120,10 @@ body {
     gap: 10px;
 }
 
+.controls-wrap {
+    flex-wrap: wrap;
+}
+
 #timeSlider {
     flex: 1;
 }
@@ -130,6 +141,19 @@ body {
 #messageReachContainer {
     max-height: 200px;
     overflow-y: auto;
+}
+
+#impactTableContainer {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+#message-graph-container,
+#cascade-tree-container {
+    border: 1px solid #ccc;
+    background-color: #fafafa;
+    position: relative;
+    min-height: 280px;
 }
 
 table {
@@ -184,4 +208,51 @@ th {
     border: 0px;
     border-radius: 8px;
     pointer-events: none;
+}
+
+.info-banner {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.metric-card {
+    border-bottom: 1px solid #eee;
+    padding: 6px 0;
+}
+
+.metric-card:last-child {
+    border-bottom: none;
+}
+
+.impact-row-selected {
+    background-color: #e8f1ff;
+}
+
+.message-node {
+    stroke: #fff;
+    stroke-width: 1.2px;
+}
+
+.message-link {
+    stroke: #8c8c8c;
+    stroke-opacity: 0.45;
+}
+
+.cascade-node {
+    stroke: #fff;
+    stroke-width: 1.2px;
+}
+
+.cascade-link {
+    fill: none;
+    stroke: #64748b;
+    stroke-opacity: 0.65;
+    stroke-width: 1.5px;
+}
+
+.empty-state {
+    color: #666;
+    font-style: italic;
+    padding: 8px 0;
 }
