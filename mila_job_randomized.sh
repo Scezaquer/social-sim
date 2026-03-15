@@ -5,7 +5,7 @@
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=unkillable
+#SBATCH --partition=main
 
 set -euo pipefail
 
@@ -40,7 +40,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(50 500 1000 1500)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("minitaur_loras" "qwen_base" "qwen_loras")
+MODEL_PROFILE_CHOICES=("minitaur_loras")
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
 QUESTION_NUMBER="${QUESTION_PICK%%:*}"
