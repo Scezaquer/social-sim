@@ -10,6 +10,7 @@ from tqdm import tqdm
 import networkx as nx
 import time
 import re
+from collections import Counter
 
 class SimEngine(engine_lib.Engine):
     """Engine interface."""
@@ -34,14 +35,274 @@ class SimEngine(engine_lib.Engine):
         self._homophily = homophily
         self._model_probabilities = model_probabilities
         self._homophily_metrics = None
+        self._behavioral_metrics = None
         self._visualizer_data = {
             "nodes": [],
             "edges": [],
             "threads": [],
             "observations": [],
             "survey_results": [],
-            "news_posts": []
+            "news_posts": [],
+            "behavioral_metrics": {},
         }
+
+    @staticmethod
+    def _normalized_entropy(counts: Counter[str]) -> float:
+        total = sum(counts.values())
+        if total <= 0:
+            return 0.0
+        probs = np.array([count / total for count in counts.values() if count > 0], dtype=float)
+        if probs.size <= 1:
+            return 0.0
+        entropy = -float(np.sum(probs * np.log(probs)))
+        max_entropy = float(np.log(probs.size))
+        if max_entropy <= 0:
+            return 0.0
+        return float(entropy / max_entropy)
+
+    def _compute_echo_chamber_metrics(self) -> dict[str, Any]:
+        if not self._survey_results:
+            return {
+                "status": "insufficient_data",
+                "reason": "No survey results available.",
+            }
+
+        latest_survey = self._survey_results[-1]
+        latest_step = int(latest_survey.get("step", -1))
+        latest_results = latest_survey.get("results", {})
+        if not latest_results:
+            return {
+                "status": "insufficient_data",
+                "reason": "Latest survey has no user responses.",
+                "survey_step": latest_step,
+            }
+
+        user_names = {
+            node["name"]
+            for node in self._visualizer_data.get("nodes", [])
+            if node.get("type") == "User"
+        }
+        name_to_option = {
+            name: option
+            for name, option in latest_results.items()
+            if name in user_names
+        }
+
+        if len(name_to_option) < 2:
+            return {
+                "status": "insufficient_data",
+                "reason": "Need at least two surveyed users.",
+                "survey_step": latest_step,
+            }
+
+        options = sorted({option for option in name_to_option.values()})
+        option_to_id = {option: idx for idx, option in enumerate(options)}
+
+        graph = nx.DiGraph()
+        for name, option in name_to_option.items():
+            graph.add_node(name, opinion=option_to_id[option])
+
+        edge_count_considered = 0
+        cross_cutting_edges = 0
+        for edge in self._visualizer_data.get("edges", []):
+            source_idx = edge.get("source")
+            target_idx = edge.get("target")
+            if source_idx is None or target_idx is None:
+                continue
+
+            if source_idx < 0 or target_idx < 0:
+                continue
+
+            if source_idx >= len(self._visualizer_data["nodes"]) or target_idx >= len(self._visualizer_data["nodes"]):
+                continue
+
+            source_name = self._visualizer_data["nodes"][source_idx]["name"]
+            target_name = self._visualizer_data["nodes"][target_idx]["name"]
+            if source_name not in name_to_option or target_name not in name_to_option:
+                continue
+
+            graph.add_edge(source_name, target_name)
+            edge_count_considered += 1
+            if name_to_option[source_name] != name_to_option[target_name]:
+                cross_cutting_edges += 1
+
+        if graph.number_of_edges() == 0:
+            return {
+                "status": "insufficient_data",
+                "reason": "No user-user edges with survey labels.",
+                "survey_step": latest_step,
+            }
+
+        try:
+            assortativity = nx.attribute_assortativity_coefficient(graph, "opinion")
+            if np.isnan(assortativity):
+                assortativity = 0.0
+        except Exception:
+            assortativity = 0.0
+
+        local_agreements = []
+        for user_name in graph.nodes:
+            neighbors = list(graph.successors(user_name))
+            if not neighbors:
+                continue
+            same = sum(1 for neighbor in neighbors if name_to_option[neighbor] == name_to_option[user_name])
+            local_agreements.append(float(same / len(neighbors)))
+
+        thread_messages = {
+            int(thread.id): sorted(thread.content, key=lambda m: int(m.get("step", -1)))
+            for thread in self._threads
+        }
+
+        exposure_same_option_shares = []
+        exposure_diversities = []
+        for obs in self._visualizer_data.get("observations", []):
+            observer = obs.get("entity_name")
+            thread_id = int(obs.get("thread_id", -1))
+            obs_step = int(obs.get("step", -1))
+            if observer not in name_to_option or thread_id not in thread_messages:
+                continue
+
+            option_counts: Counter[str] = Counter()
+            for message in thread_messages[thread_id]:
+                msg_step = int(message.get("step", -1))
+                if msg_step < 0 or msg_step >= obs_step:
+                    break
+                author = message.get("role")
+                if author in name_to_option:
+                    option_counts[name_to_option[author]] += 1
+
+            total_exposed = sum(option_counts.values())
+            if total_exposed == 0:
+                continue
+
+            observer_option = name_to_option[observer]
+            same_option_count = option_counts.get(observer_option, 0)
+            exposure_same_option_shares.append(float(same_option_count / total_exposed))
+            exposure_diversities.append(self._normalized_entropy(option_counts))
+
+        return {
+            "status": "ok",
+            "survey_step": latest_step,
+            "labeled_user_count": len(name_to_option),
+            "labeled_edge_count": edge_count_considered,
+            "network_assortativity": float(assortativity),
+            "mean_local_agreement": float(np.mean(local_agreements)) if local_agreements else 0.0,
+            "cross_cutting_edge_fraction": float(cross_cutting_edges / edge_count_considered) if edge_count_considered else 0.0,
+            "mean_same_option_exposure_share": float(np.mean(exposure_same_option_shares)) if exposure_same_option_shares else 0.0,
+            "mean_exposure_diversity": float(np.mean(exposure_diversities)) if exposure_diversities else 0.0,
+            "option_distribution": dict(Counter(name_to_option.values())),
+        }
+
+    def _compute_herd_effect_metrics(self) -> dict[str, Any]:
+        surveys = self._survey_results
+        if len(surveys) < 2:
+            return {
+                "status": "insufficient_data",
+                "reason": "Need at least two survey snapshots.",
+                "survey_count": len(surveys),
+            }
+
+        transitions = []
+        herd_follow_rates = []
+        shift_rates = []
+        consensus_gains = []
+
+        for prev, curr in zip(surveys[:-1], surveys[1:]):
+            prev_results = prev.get("results", {})
+            curr_results = curr.get("results", {})
+            shared_users = set(prev_results).intersection(curr_results)
+            if not shared_users:
+                continue
+
+            changed_users = [
+                name for name in shared_users
+                if prev_results[name] != curr_results[name]
+            ]
+
+            prev_counts = Counter(prev_results[name] for name in shared_users)
+            curr_counts = Counter(curr_results[name] for name in shared_users)
+            prev_majority_option, prev_majority_count = max(prev_counts.items(), key=lambda item: item[1])
+            curr_majority_option, curr_majority_count = max(curr_counts.items(), key=lambda item: item[1])
+
+            moved_to_curr_majority = sum(
+                1 for name in changed_users if curr_results[name] == curr_majority_option
+            )
+            moved_to_prev_majority = sum(
+                1 for name in changed_users if curr_results[name] == prev_majority_option
+            )
+
+            n_shared = len(shared_users)
+            n_changed = len(changed_users)
+            shift_rate = float(n_changed / n_shared)
+            herd_follow_rate = float(moved_to_curr_majority / n_changed) if n_changed else 0.0
+            prev_consensus = float(prev_majority_count / n_shared)
+            curr_consensus = float(curr_majority_count / n_shared)
+            consensus_gain = curr_consensus - prev_consensus
+
+            transitions.append({
+                "from_step": int(prev.get("step", -1)),
+                "to_step": int(curr.get("step", -1)),
+                "shared_users": n_shared,
+                "changed_users": n_changed,
+                "opinion_shift_rate": shift_rate,
+                "current_majority_follow_rate": herd_follow_rate,
+                "moved_to_previous_majority_rate": float(moved_to_prev_majority / n_changed) if n_changed else 0.0,
+                "previous_majority_option": prev_majority_option,
+                "current_majority_option": curr_majority_option,
+                "previous_consensus": prev_consensus,
+                "current_consensus": curr_consensus,
+                "consensus_gain": consensus_gain,
+                "previous_diversity": self._normalized_entropy(prev_counts),
+                "current_diversity": self._normalized_entropy(curr_counts),
+            })
+
+            herd_follow_rates.append(herd_follow_rate)
+            shift_rates.append(shift_rate)
+            consensus_gains.append(consensus_gain)
+
+        if not transitions:
+            return {
+                "status": "insufficient_data",
+                "reason": "No overlapping users between consecutive surveys.",
+                "survey_count": len(surveys),
+            }
+
+        first_counts = Counter(surveys[0].get("results", {}).values())
+        last_counts = Counter(surveys[-1].get("results", {}).values())
+        first_consensus = (
+            max(first_counts.values()) / max(sum(first_counts.values()), 1)
+            if first_counts else 0.0
+        )
+        last_consensus = (
+            max(last_counts.values()) / max(sum(last_counts.values()), 1)
+            if last_counts else 0.0
+        )
+
+        return {
+            "status": "ok",
+            "survey_count": len(surveys),
+            "transition_count": len(transitions),
+            "mean_opinion_shift_rate": float(np.mean(shift_rates)) if shift_rates else 0.0,
+            "mean_current_majority_follow_rate": float(np.mean(herd_follow_rates)) if herd_follow_rates else 0.0,
+            "mean_consensus_gain": float(np.mean(consensus_gains)) if consensus_gains else 0.0,
+            "initial_consensus": float(first_consensus),
+            "final_consensus": float(last_consensus),
+            "net_consensus_change": float(last_consensus - first_consensus),
+            "initial_diversity": self._normalized_entropy(first_counts),
+            "final_diversity": self._normalized_entropy(last_counts),
+            "transitions": transitions,
+        }
+
+    def _compute_behavioral_metrics(self) -> dict[str, Any]:
+        return {
+            "echo_chamber_metrics": self._compute_echo_chamber_metrics(),
+            "herd_effect_metrics": self._compute_herd_effect_metrics(),
+        }
+
+    def get_behavioral_metrics(self) -> dict[str, Any]:
+        """Returns computed echo-chamber and herd-effect metrics."""
+        self._behavioral_metrics = self._compute_behavioral_metrics()
+        return self._behavioral_metrics
 
     def _compute_model_opinion_scores(self) -> dict[int, float]:
         if not self._model_probabilities:
@@ -213,6 +474,8 @@ class SimEngine(engine_lib.Engine):
         self._visualizer_data["threads"] = [
             {"id": t.id, "messages": t.content} for t in self._threads
         ]
+        self._behavioral_metrics = self._compute_behavioral_metrics()
+        self._visualizer_data["behavioral_metrics"] = self._behavioral_metrics
         return self._visualizer_data
 
     def _initialize_social_context(self, entities: Sequence[entity_lib.Entity]):

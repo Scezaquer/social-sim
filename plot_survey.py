@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 from collections import Counter
 import sys
 
+
+def _extract_survey_entries(payload):
+    if isinstance(payload, dict):
+        return payload.get('survey_results', [])
+    return payload
+
 def main():
     parser = argparse.ArgumentParser(description='Analyze survey results chronologically.')
     parser.add_argument('input_file', type=str, help='Path to the survey results JSON file')
@@ -13,7 +19,8 @@ def main():
 
     try:
         with open(args.input_file, 'r') as f:
-            data = json.load(f)
+            payload = json.load(f)
+            data = _extract_survey_entries(payload)
     except FileNotFoundError:
         print(f"Error: File {args.input_file} not found.")
         sys.exit(1)

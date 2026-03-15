@@ -13,6 +13,10 @@ import json
 import networkx as nx
 import random
 
+
+def _infer_graph_type(random_graph: bool) -> str:
+    return "random" if random_graph else "powerlaw_cluster"
+
 def get_unique_name(used_names):
     while True:
         name = names.get_full_name()
@@ -63,7 +67,39 @@ if __name__ == "__main__":
     )
     parser.add_argument("--add_survey_to_context", action="store_true", help="Add survey questions and responses to the context of the models")
     parser.add_argument("--base_model", type=str, default="marcelbinz/Llama-3.1-Minitaur-8B", help="Base model to use")
+    parser.add_argument(
+        "--lora_name_template",
+        type=str,
+        default="Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}",
+        help="Template used to build LoRA folder names from an index (must include {i}).",
+    )
+    parser.add_argument(
+        "--num_loras",
+        type=int,
+        default=25,
+        help="Number of LoRAs available at loras_path (used when --lora_indices is not provided).",
+    )
+    parser.add_argument(
+        "--lora_indices",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Optional list of LoRA indices to load. If omitted, all indices in [0, num_loras) are loaded.",
+    )
+    parser.add_argument(
+        "--num_agents",
+        type=int,
+        default=1000,
+        help="Number of user agents in the simulation graph.",
+    )
+    parser.add_argument(
+        "--num_news_agents",
+        type=int,
+        default=1,
+        help="Number of news source agents to add to the simulation.",
+    )
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
+    parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
 
     args = parser.parse_args()
 
@@ -73,7 +109,16 @@ if __name__ == "__main__":
     print("GPU name:", torch.cuda.get_device_name(0))
     print("Compute capability:", torch.cuda.get_device_capability(0))
 
-    NUM_ENTITIES = 1_000
+    if args.num_agents <= 0:
+        raise ValueError("--num_agents must be > 0")
+    if args.num_news_agents < 0:
+        raise ValueError("--num_news_agents must be >= 0")
+    if args.num_loras <= 0:
+        raise ValueError("--num_loras must be > 0")
+    if "{i}" not in args.lora_name_template:
+        raise ValueError("--lora_name_template must contain '{i}'")
+
+    NUM_ENTITIES = args.num_agents
     VLLM_MODEL_NAME = args.base_model
     PREFIX_CACHING = False
     QUESTIONS_FILE_PATH = "divisive_questions_probabilities.json"
@@ -95,12 +140,19 @@ if __name__ == "__main__":
     ], dtype=float)
 
     models = []
+    loaded_lora_indices = []
 
     if args.loras_path:
-        for i in range(25):
-            # lora_path = args.loras_path + f"/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
-            lora_path = os.path.join(args.loras_path, f"Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}")
-            # lora_path = f"/home/s4yor1/scratch/qwen-loras/Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+        if args.lora_indices is None:
+            candidate_indices = list(range(args.num_loras))
+        else:
+            candidate_indices = args.lora_indices
+
+        for i in candidate_indices:
+            if i < 0:
+                raise ValueError("LoRA indices must be non-negative.")
+            lora_dir_name = args.lora_name_template.format(i=i)
+            lora_path = os.path.join(args.loras_path, lora_dir_name)
             print(f"Loading LoRA model from: {lora_path}")
             model_i = UnslothLora(
                 model_name=VLLM_MODEL_NAME,
@@ -108,6 +160,7 @@ if __name__ == "__main__":
                 unsloth_language_model=base_model,
             )
             models.append(model_i)
+            loaded_lora_indices.append(i)
             print(f"LoRA model {i} initialized successfully!")
     else:
         print("No LoRA path provided. Using base model for all agents.")
@@ -131,13 +184,13 @@ if __name__ == "__main__":
             proportions = np.array([1.0])
             print("Using base model only.")
         else:
-            if len(default_proportions) != len(models):
-                raise ValueError(
-                    f"Default proportions length ({len(default_proportions)}) does not match "
-                    f"number of models ({len(models)})."
-                )
-            proportions = default_proportions / default_proportions.sum()
-            print("Using built-in default proportions.")
+            if loaded_lora_indices and len(default_proportions) >= (max(loaded_lora_indices) + 1):
+                selected_defaults = default_proportions[loaded_lora_indices]
+                proportions = selected_defaults / selected_defaults.sum()
+                print("Using built-in default proportions for selected LoRA indices.")
+            else:
+                proportions = np.ones(len(models), dtype=float) / len(models)
+                print("Using uniform proportions (no matching built-in defaults available).")
     
     # Finalize model for inference after all adapters are loaded
     base_model.finalize_inference()
@@ -167,7 +220,12 @@ if __name__ == "__main__":
         "Public Affairs Daily",
     ]
 
-    for tweet_file in args.tweet_files:
+    tweet_files_pool = list(args.tweet_files) if args.tweet_files else ["trump_tweets.json"]
+    if not tweet_files_pool:
+        raise ValueError("At least one tweet file must be provided.")
+
+    for _ in range(args.num_news_agents):
+        tweet_file = random.choice(tweet_files_pool)
         tweet_file_path = tweet_file
         if not os.path.isabs(tweet_file_path):
             tweet_file_path = os.path.join(WORKSPACE_ROOT, tweet_file_path)
@@ -199,9 +257,9 @@ if __name__ == "__main__":
     }
 
     if args.random_graph:
-        G = nx.erdos_renyi_graph(NUM_ENTITIES + 1, 0.05, seed=args.array_id)
+        G = nx.erdos_renyi_graph(NUM_ENTITIES + args.num_news_agents, 0.05, seed=args.array_id)
     else:
-        G = nx.powerlaw_cluster_graph(NUM_ENTITIES + 1, 14, 0.4, seed=args.array_id)
+        G = nx.powerlaw_cluster_graph(NUM_ENTITIES + args.num_news_agents, 14, 0.4, seed=args.array_id)
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
     sim_engine = SimEngine(
@@ -228,9 +286,38 @@ if __name__ == "__main__":
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
+    run_parameters = {
+        "start_time": args.start_time,
+        "duration": args.duration,
+        "effective_duration": effective_duration,
+        "array_id": args.array_id,
+        "job_id": args.job_id,
+        "base_model": args.base_model,
+        "loras_path": args.loras_path,
+        "lora_name_template": args.lora_name_template,
+        "num_loras": args.num_loras,
+        "lora_indices": loaded_lora_indices,
+        "num_agents": args.num_agents,
+        "num_news_agents": args.num_news_agents,
+        "graph_type": _infer_graph_type(args.random_graph),
+        "homophily": args.homophily,
+        "question_number": args.question_number,
+        "tweet_files": args.tweet_files,
+        "add_survey_to_context": args.add_survey_to_context,
+        "proportions": proportions.tolist(),
+    }
+
+    print("Resolved run parameters:")
+    print(json.dumps(run_parameters, indent=2))
+
+    survey_results_payload = {
+        "run_parameters": run_parameters,
+        "survey_results": sim_engine.get_survey_results(),
+    }
+
     # Save survey results
     with open(args.survey_output, 'w') as f:
-        json.dump(sim_engine.get_survey_results(), f, indent=2)
+        json.dump(survey_results_payload, f, indent=2)
     print(f"Survey results saved to {args.survey_output}")
 
     for thread in runnable_simulation._engine._threads:
@@ -256,6 +343,52 @@ if __name__ == "__main__":
     else:
         visualizer_data_path = os.path.join(WORKSPACE_ROOT, f"visualizer_data_{args.job_id}_{args.array_id}.json")
         
+    visualizer_payload = sim_engine.get_visualizer_data()
+    if isinstance(visualizer_payload, dict):
+        visualizer_payload["run_parameters"] = run_parameters
+
     with open(visualizer_data_path, 'w') as f:
-        json.dump(sim_engine.get_visualizer_data(), f, indent=4)
+        json.dump(visualizer_payload, f, indent=4)
     print(f"Visualizer data saved to {visualizer_data_path}")
+
+    # Echo chamber metrics (from latest survey + network + exposures):
+    # network_assortativity
+    # mean_local_agreement
+    # cross_cutting_edge_fraction
+    # mean_same_option_exposure_share
+    # mean_exposure_diversity
+    # plus counts/distribution metadata
+
+    # Herd effect metrics (across consecutive surveys):
+    # mean_opinion_shift_rate
+    # mean_current_majority_follow_rate
+    # mean_consensus_gain
+    # initial_consensus, final_consensus, net_consensus_change
+    # per-transition details in transitions
+
+    behavioral_metrics = sim_engine.get_behavioral_metrics()
+    echo_metrics = behavioral_metrics.get("echo_chamber_metrics", {})
+    herd_metrics = behavioral_metrics.get("herd_effect_metrics", {})
+
+    print("Behavioral metrics summary:")
+    print(
+        "Echo-chamber: "
+        f"assortativity={echo_metrics.get('network_assortativity', 'n/a')}, "
+        f"cross_cutting_edge_fraction={echo_metrics.get('cross_cutting_edge_fraction', 'n/a')}, "
+        f"same_option_exposure={echo_metrics.get('mean_same_option_exposure_share', 'n/a')}"
+    )
+    print(
+        "Herd effects: "
+        f"mean_shift_rate={herd_metrics.get('mean_opinion_shift_rate', 'n/a')}, "
+        f"majority_follow_rate={herd_metrics.get('mean_current_majority_follow_rate', 'n/a')}, "
+        f"net_consensus_change={herd_metrics.get('net_consensus_change', 'n/a')}"
+    )
+
+    if args.metrics_output:
+        metrics_path = args.metrics_output
+    else:
+        metrics_path = os.path.join(WORKSPACE_ROOT, f"behavioral_metrics_{args.job_id}_{args.array_id}.json")
+
+    with open(metrics_path, 'w') as f:
+        json.dump(behavioral_metrics, f, indent=4)
+    print(f"Behavioral metrics saved to {metrics_path}")

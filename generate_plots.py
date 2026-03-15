@@ -8,6 +8,12 @@ import matplotlib.pyplot as plt
 from tabulate import tabulate
 from collections import Counter
 
+
+def _extract_survey_entries(payload):
+    if isinstance(payload, dict):
+        return payload.get('survey_results', [])
+    return payload
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Compare survey results between powerlaw and random groups.')
     parser.add_argument('folder', type=str, help='Folder containing the survey JSON files')
@@ -17,7 +23,8 @@ def parse_args():
 
 def load_data(file_path, target_option=None):
     with open(file_path, 'r') as f:
-        data = json.load(f)
+        payload = json.load(f)
+        data = _extract_survey_entries(payload)
     
     results_per_step = []
     steps = []
