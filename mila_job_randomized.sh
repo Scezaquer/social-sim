@@ -78,7 +78,7 @@ if [[ "$MODEL_PROFILE" == "minitaur_loras" ]]; then
     LORA_INDEX_SET=$(pick_random MINITAUR_INDEX_SETS)
 elif [[ "$MODEL_PROFILE" == "qwen_loras" ]]; then
     BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
-    LORAS_PATH="$SCRATCH/qwen-loras"
+    LORAS_PATH="$SCRATCH/Qwen"
     LORA_NAME_TEMPLATE="Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
     NUM_LORAS=10
     QWEN_INDEX_SETS=(
