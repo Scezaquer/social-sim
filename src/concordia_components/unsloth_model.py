@@ -64,6 +64,20 @@ class UnslothLanguageModel(language_model.LanguageModel):
         load_in_4bit=load_in_4bit,
         **kwargs
     )
+    # Ensure the model is a PeftModel to support multiple adapters correctly
+    if not hasattr(self.model, "peft_config"):
+        from peft import LoraConfig
+        print("Converting base model to PeftModel for multi-adapter support.")
+        self.model = FastLanguageModel.get_peft_model(
+            self.model,
+            r=16,
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
+                            "gate_proj", "up_proj", "down_proj"],
+            lora_alpha=16,
+            lora_dropout=0,
+            bias="none",
+        )
+    
     # Ensure pad_token is set (crucial for Llama-3 models in Unsloth)
     if self.tokenizer.pad_token is None:
         self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -244,7 +258,7 @@ class UnslothLora(language_model.LanguageModel):
     else:
         self._base_model = UnslothLanguageModel(model_name, **kwargs)
         
-    self._adapter_name = f"AAAAAAAAAA_{self._base_model.increment_lora_adapters()}"
+    self._adapter_name = f"adapter_{self._base_model.increment_lora_adapters()}"
     print(f"Loading LoRA adapter from {lora_path} into adapter slot {self._adapter_name}")
     self._base_model.load_adapter(lora_path, adapter_name=self._adapter_name)
 
