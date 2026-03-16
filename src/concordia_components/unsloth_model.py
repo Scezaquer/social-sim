@@ -245,7 +245,8 @@ class UnslothLora(language_model.LanguageModel):
         self._base_model = UnslothLanguageModel(model_name, **kwargs)
         
     self._adapter_name = f"adapter_{self._base_model.increment_lora_adapters()}"
-    self._base_model.load_adapter(lora_path, self._adapter_name)
+    print(f"Loading LoRA adapter from {lora_path} into adapter slot {self._adapter_name}")
+    self._base_model.load_adapter(lora_path, adapter_name=self._adapter_name)
 
   def apply_chat_template(self, messages: list[dict[str, str]], add_generation_prompt: bool = True) -> str:
       return self._base_model.apply_chat_template(messages, add_generation_prompt=add_generation_prompt)
