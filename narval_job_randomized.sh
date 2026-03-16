@@ -2,7 +2,7 @@
 #SBATCH --account=def-rrabba
 #SBATCH --job-name=RandomizedSim
 #SBATCH --array=0-19
-#SBATCH --time=24:00:00
+#SBATCH --time=3:00:00
 #SBATCH --mem-per-cpu=64G
 #SBATCH --gpus-per-node=a100:1
 
