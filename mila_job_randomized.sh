@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=RandomizedSim
-#SBATCH --array=0-40
+#SBATCH --array=0-19
 #SBATCH --time=3:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=short-unkillable
+#SBATCH --partition=main
 
 set -euo pipefail
 
