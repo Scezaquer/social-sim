@@ -2,6 +2,8 @@
 
 from collections.abc import Collection, Sequence
 from typing import Any, Mapping
+import os
+import re
 import torch
 
 from concordia.language_model import language_model
@@ -14,6 +16,22 @@ try:
 except ImportError:
   FastLanguageModel = None
   UNSLOTH_AVAILABLE = False
+
+try:
+    from peft import PeftConfig
+    from peft.utils.save_and_load import set_peft_model_state_dict
+    PEFT_AVAILABLE = True
+except ImportError:
+    PeftConfig = None
+    set_peft_model_state_dict = None
+    PEFT_AVAILABLE = False
+
+try:
+    from safetensors.torch import load_file as safe_load_file
+    SAFETENSORS_AVAILABLE = True
+except ImportError:
+    safe_load_file = None
+    SAFETENSORS_AVAILABLE = False
 
 from transformers import StoppingCriteria, StoppingCriteriaList
 
@@ -79,9 +97,97 @@ class UnslothLanguageModel(language_model.LanguageModel):
   def increment_lora_adapters(self) -> int:
     self._nbr_lora_adapters += 1
     return self._nbr_lora_adapters
+
+    def _find_adapter_weights_file(self, lora_path: str) -> str | None:
+        candidates = (
+                "adapter_model.safetensors",
+                "adapter_model.bin",
+                "pytorch_model.bin",
+        )
+        for filename in candidates:
+            full_path = os.path.join(lora_path, filename)
+            if os.path.isfile(full_path):
+                return full_path
+        return None
+
+    def _load_adapter_state_dict(self, weights_path: str) -> Mapping[str, torch.Tensor]:
+        if weights_path.endswith(".safetensors"):
+            if not SAFETENSORS_AVAILABLE:
+                raise ImportError(
+                        "safetensors is required to load adapter_model.safetensors"
+                )
+            return safe_load_file(weights_path)
+        state_dict = torch.load(weights_path, map_location="cpu")
+        if isinstance(state_dict, dict) and "state_dict" in state_dict and isinstance(state_dict["state_dict"], dict):
+            return state_dict["state_dict"]
+        return state_dict
+
+    def _extract_adapter_tokens(self, state_dict: Mapping[str, torch.Tensor]) -> set[str]:
+        tokens: set[str] = set()
+        # Example key: model.layers.0.self_attn.q_proj.lora_A.adapter_1.weight
+        pattern = re.compile(r"\.lora_[AB]\.([^.]+)\.weight$")
+        for key in state_dict.keys():
+            match = pattern.search(key)
+            if match:
+                tokens.add(match.group(1))
+        return tokens
+
+    def _remap_adapter_token(
+            self,
+            state_dict: Mapping[str, torch.Tensor],
+            source_token: str,
+            target_token: str,
+    ) -> dict[str, torch.Tensor]:
+        remapped: dict[str, torch.Tensor] = {}
+        marker = f".{source_token}."
+        replacement = f".{target_token}."
+        for key, value in state_dict.items():
+            remapped[key.replace(marker, replacement)] = value
+        return remapped
+
+    def _load_adapter_with_state_dict_fallback(self, lora_path: str, adapter_name: str) -> None:
+        if not PEFT_AVAILABLE:
+            raise RuntimeError(
+                    "PEFT is required for fallback adapter loading, but it is not available."
+            )
+
+        weights_path = self._find_adapter_weights_file(lora_path)
+        if weights_path is None:
+            raise FileNotFoundError(
+                    f"No adapter weights file found under {lora_path}."
+            )
+
+        state_dict = self._load_adapter_state_dict(weights_path)
+        adapter_tokens = self._extract_adapter_tokens(state_dict)
+
+        if len(adapter_tokens) == 1:
+            source_token = next(iter(adapter_tokens))
+            if source_token != adapter_name:
+                print(
+                        f"Remapping checkpoint adapter token '{source_token}' to '{adapter_name}' "
+                        f"for {lora_path}"
+                )
+                state_dict = self._remap_adapter_token(state_dict, source_token, adapter_name)
+
+        peft_config = PeftConfig.from_pretrained(lora_path)
+        if adapter_name not in getattr(self.model, "peft_config", {}):
+            self.model.add_adapter(adapter_name, peft_config)
+
+        set_peft_model_state_dict(self.model, state_dict, adapter_name=adapter_name)
+        self.model.set_adapter(adapter_name)
     
   def load_adapter(self, lora_path: str, adapter_name: str):
-      self.model.load_adapter(lora_path, adapter_name)
+      # Newer Unsloth/PEFT combinations can mismatch checkpoint adapter tokens
+      # (e.g., checkpoint has adapter_1 while runtime expects adapter_2).
+      # When possible, load via state_dict with token remapping.
+      try:
+          self._load_adapter_with_state_dict_fallback(lora_path, adapter_name)
+      except Exception as remap_exc:
+          print(
+              f"Fallback adapter load failed for {lora_path} ({remap_exc}). "
+              "Trying native load_adapter."
+          )
+          self.model.load_adapter(lora_path, adapter_name)
     
   def apply_chat_template(self, messages: list[dict[str, str]], add_generation_prompt: bool = True) -> str:
       return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=add_generation_prompt)
