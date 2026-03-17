@@ -214,3 +214,5 @@ notable_generations.txt
 qwen-loras/
 unsloth_compiled_cache/
 visualizer_*
+survey*
+anova*

@@ -65,16 +65,39 @@ class SimEngine(engine_lib.Engine):
             return {
                 "status": "insufficient_data",
                 "reason": "No survey results available.",
+                "survey_count": 0,
+                "by_survey": [],
             }
 
-        latest_survey = self._survey_results[-1]
-        latest_step = int(latest_survey.get("step", -1))
-        latest_results = latest_survey.get("results", {})
-        if not latest_results:
+        per_survey = [
+            self._compute_echo_chamber_metrics_for_survey(survey)
+            for survey in self._survey_results
+        ]
+
+        latest = per_survey[-1]
+        return {
+            **latest,
+            "survey_count": len(self._survey_results),
+            "by_survey": per_survey,
+        }
+
+    def _compute_echo_chamber_metrics_for_survey(
+        self,
+        survey: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not isinstance(survey, dict):
             return {
                 "status": "insufficient_data",
-                "reason": "Latest survey has no user responses.",
-                "survey_step": latest_step,
+                "reason": "Invalid survey snapshot.",
+            }
+
+        survey_step = int(survey.get("step", -1))
+        survey_results = survey.get("results", {})
+        if not survey_results:
+            return {
+                "status": "insufficient_data",
+                "reason": "Survey has no user responses.",
+                "survey_step": survey_step,
             }
 
         user_names = {
@@ -84,7 +107,7 @@ class SimEngine(engine_lib.Engine):
         }
         name_to_option = {
             name: option
-            for name, option in latest_results.items()
+            for name, option in survey_results.items()
             if name in user_names
         }
 
@@ -92,7 +115,7 @@ class SimEngine(engine_lib.Engine):
             return {
                 "status": "insufficient_data",
                 "reason": "Need at least two surveyed users.",
-                "survey_step": latest_step,
+                "survey_step": survey_step,
             }
 
         options = sorted({option for option in name_to_option.values()})
@@ -130,7 +153,7 @@ class SimEngine(engine_lib.Engine):
             return {
                 "status": "insufficient_data",
                 "reason": "No user-user edges with survey labels.",
-                "survey_step": latest_step,
+                "survey_step": survey_step,
             }
 
         try:
@@ -161,6 +184,8 @@ class SimEngine(engine_lib.Engine):
             obs_step = int(obs.get("step", -1))
             if observer not in name_to_option or thread_id not in thread_messages:
                 continue
+            if obs_step > survey_step:
+                continue
 
             option_counts: Counter[str] = Counter()
             for message in thread_messages[thread_id]:
@@ -182,7 +207,7 @@ class SimEngine(engine_lib.Engine):
 
         return {
             "status": "ok",
-            "survey_step": latest_step,
+            "survey_step": survey_step,
             "labeled_user_count": len(name_to_option),
             "labeled_edge_count": edge_count_considered,
             "network_assortativity": float(assortativity),

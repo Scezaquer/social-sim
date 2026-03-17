@@ -59,6 +59,13 @@ if __name__ == "__main__":
         help="Optional list of model weights/proportions (e.g., --proportions 1 2 3 ...). Must match number of LoRA models.",
     )
     parser.add_argument(
+        "--proportions_option",
+        type=str,
+        choices=["uniform", "blueprint", "average", "distribution"],
+        default=None,
+        help="Optional label describing which proportions preset was used.",
+    )
+    parser.add_argument(
         "--tweet_files",
         type=str,
         nargs="*",
@@ -304,6 +311,7 @@ if __name__ == "__main__":
         "question_number": args.question_number,
         "tweet_files": args.tweet_files,
         "add_survey_to_context": args.add_survey_to_context,
+        "proportions_option": args.proportions_option,
         "proportions": proportions.tolist(),
     }
 
