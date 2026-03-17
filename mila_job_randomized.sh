@@ -5,7 +5,7 @@
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=short-unkillable
+#SBATCH --partition=main
 
 set -euo pipefail
 
