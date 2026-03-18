@@ -9,11 +9,14 @@ from concordia.utils.deprecated import measurements as measurements_lib
 from typing_extensions import override
 
 try:
-  from unsloth import FastLanguageModel
-  UNSLOTH_AVAILABLE = True
-except ImportError:
-  FastLanguageModel = None
-  UNSLOTH_AVAILABLE = False
+    from unsloth import FastLanguageModel
+    UNSLOTH_AVAILABLE = True
+    UNSLOTH_IMPORT_ERROR: ImportError | None = None
+
+except ImportError as e:
+    FastLanguageModel = None
+    UNSLOTH_AVAILABLE = False
+    UNSLOTH_IMPORT_ERROR = e
 
 from transformers import StoppingCriteria, StoppingCriteriaList
 
@@ -47,6 +50,11 @@ class UnslothLanguageModel(language_model.LanguageModel):
       **kwargs: Any,
   ):
     if not UNSLOTH_AVAILABLE:
+        if UNSLOTH_IMPORT_ERROR is not None:
+            raise ImportError(
+                "Unsloth is required but failed to import. Original error: "
+                + str(UNSLOTH_IMPORT_ERROR)
+            ) from UNSLOTH_IMPORT_ERROR
         raise ImportError(
             "Unsloth is required but not installed."
         )
