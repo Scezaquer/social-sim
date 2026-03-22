@@ -40,6 +40,7 @@ BASE_METRICS = [
     "consensus",
     "diversity",
     "opinion_shift_rate",
+    "neighbor_alignment_shift_rate",
 ]
 
 
@@ -56,6 +57,7 @@ class RunRecord:
     opinion_shift_by_step: Dict[int, float]
     consensus_gain_by_step: Dict[int, float]
     moved_to_prev_majority_by_step: Dict[int, float]
+    neighbor_alignment_shift_by_step: Dict[int, float]
     echo_assortativity_by_step: Dict[int, float]
     echo_local_agreement_by_step: Dict[int, float]
     echo_cross_cutting_by_step: Dict[int, float]
@@ -146,7 +148,7 @@ def extract_vote_percentages(survey_results: List[Dict[str, Any]]) -> Dict[int, 
 
 
 def extract_herd_metrics(behavioral_metrics: Dict[str, Any]) -> Tuple[
-    Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float]
+    Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float], Dict[int, float]
 ]:
     majority_follow_by_step: Dict[int, float] = {}
     consensus_by_step: Dict[int, float] = {}
@@ -154,6 +156,7 @@ def extract_herd_metrics(behavioral_metrics: Dict[str, Any]) -> Tuple[
     opinion_shift_by_step: Dict[int, float] = {}
     consensus_gain_by_step: Dict[int, float] = {}
     moved_to_prev_majority_by_step: Dict[int, float] = {}
+    neighbor_alignment_shift_by_step: Dict[int, float] = {}
 
     herd = behavioral_metrics.get("herd_effect_metrics", {}) if isinstance(behavioral_metrics, dict) else {}
     transitions = herd.get("transitions", []) if isinstance(herd, dict) else []
@@ -203,6 +206,10 @@ def extract_herd_metrics(behavioral_metrics: Dict[str, Any]) -> Tuple[
         if val is not None:
             moved_to_prev_majority_by_step[step] = val
 
+        val = safe_float(tr.get("neighbor_alignment_shift_rate"))
+        if val is not None:
+            neighbor_alignment_shift_by_step[step] = val
+
     return (
         majority_follow_by_step,
         consensus_by_step,
@@ -210,6 +217,7 @@ def extract_herd_metrics(behavioral_metrics: Dict[str, Any]) -> Tuple[
         opinion_shift_by_step,
         consensus_gain_by_step,
         moved_to_prev_majority_by_step,
+        neighbor_alignment_shift_by_step,
     )
 
 
@@ -324,6 +332,7 @@ def load_run_record(file_path: str) -> Optional[RunRecord]:
         opinion_shift_by_step,
         consensus_gain_by_step,
         moved_to_prev_majority_by_step,
+        neighbor_alignment_shift_by_step,
     ) = extract_herd_metrics(behavioral_metrics)
 
     (
@@ -346,6 +355,7 @@ def load_run_record(file_path: str) -> Optional[RunRecord]:
         opinion_shift_by_step=opinion_shift_by_step,
         consensus_gain_by_step=consensus_gain_by_step,
         moved_to_prev_majority_by_step=moved_to_prev_majority_by_step,
+        neighbor_alignment_shift_by_step=neighbor_alignment_shift_by_step,
         echo_assortativity_by_step=echo_assortativity_by_step,
         echo_local_agreement_by_step=echo_local_agreement_by_step,
         echo_cross_cutting_by_step=echo_cross_cutting_by_step,
@@ -405,6 +415,11 @@ def build_metric_observations(
             val = safe_float(value)
             if val is not None:
                 observations["moved_to_previous_majority_rate"].append((step, val, run.params, run.full_param_signature))
+
+        for step, value in run.neighbor_alignment_shift_by_step.items():
+            val = safe_float(value)
+            if val is not None:
+                observations["neighbor_alignment_shift_rate"].append((step, val, run.params, run.full_param_signature))
 
         for step, value in run.echo_assortativity_by_step.items():
             val = safe_float(value)

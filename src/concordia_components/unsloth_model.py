@@ -63,15 +63,23 @@ class UnslothLanguageModel(language_model.LanguageModel):
     self._measurements = measurements
     self._channel = channel
     self._nbr_lora_adapters = 0
+
+    # Force local-only loading so Unsloth/Transformers never downloads model files.
+    kwargs.setdefault("local_files_only", True)
     
     # Initialize Unsloth model
-    self.model, self.tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_name,
-        max_seq_length=max_seq_length,
-        dtype=None,
-        load_in_4bit=load_in_4bit,
-        **kwargs
-    )
+    try:
+        self.model, self.tokenizer = FastLanguageModel.from_pretrained(
+            model_name=model_name,
+            max_seq_length=max_seq_length,
+            dtype=None,
+            load_in_4bit=load_in_4bit,
+            **kwargs
+        )
+    except Exception as e:
+        raise RuntimeError(
+            "Failed to load model with local_files_only=True. Ensure all base model files are already cached locally or provide a local model path."
+        ) from e
     # Ensure the model is a PeftModel to support multiple adapters correctly
     if not hasattr(self.model, "peft_config"):
         from peft import LoraConfig

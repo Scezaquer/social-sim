@@ -231,6 +231,41 @@ class SimEngine(engine_lib.Engine):
         herd_follow_rates = []
         shift_rates = []
         consensus_gains = []
+        neighbor_alignment_shift_rates = []
+
+        node_names = [node.get("name") for node in self._visualizer_data.get("nodes", [])]
+
+        def _neighbor_majority_option(
+            user_name: str,
+            prev_results: dict[str, str],
+            shared_users: set[str],
+        ) -> str | None:
+            if not self._social_graph or self._name_to_idx is None:
+                return None
+
+            user_idx = self._name_to_idx.get(user_name)
+            if user_idx is None or user_idx < 0 or user_idx >= len(self._social_graph):
+                return None
+
+            neighbor_options: list[str] = []
+            for neighbor_idx in self._social_graph[user_idx]:
+                if neighbor_idx < 0 or neighbor_idx >= len(node_names):
+                    continue
+                neighbor_name = node_names[neighbor_idx]
+                if neighbor_name is None or neighbor_name not in shared_users:
+                    continue
+                option = prev_results.get(neighbor_name)
+                if option is not None:
+                    neighbor_options.append(option)
+
+            if not neighbor_options:
+                return None
+
+            option_counts = Counter(neighbor_options)
+            ranked = option_counts.most_common()
+            if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+                return None
+            return ranked[0][0]
 
         for prev, curr in zip(surveys[:-1], surveys[1:]):
             prev_results = prev.get("results", {})
@@ -256,10 +291,21 @@ class SimEngine(engine_lib.Engine):
                 1 for name in changed_users if curr_results[name] == prev_majority_option
             )
 
+            neighbor_majority_eligible_users = 0
+            changed_to_neighbor_majority = 0
+            for name in shared_users:
+                neighbor_majority = _neighbor_majority_option(name, prev_results, shared_users)
+                if neighbor_majority is None:
+                    continue
+                neighbor_majority_eligible_users += 1
+                if prev_results[name] != curr_results[name] and curr_results[name] == neighbor_majority:
+                    changed_to_neighbor_majority += 1
+
             n_shared = len(shared_users)
             n_changed = len(changed_users)
             shift_rate = float(n_changed / n_shared)
             herd_follow_rate = float(moved_to_curr_majority / n_changed) if n_changed else 0.0
+            neighbor_alignment_shift_rate = float(changed_to_neighbor_majority / n_shared)
             prev_consensus = float(prev_majority_count / n_shared)
             curr_consensus = float(curr_majority_count / n_shared)
             consensus_gain = curr_consensus - prev_consensus
@@ -272,6 +318,11 @@ class SimEngine(engine_lib.Engine):
                 "opinion_shift_rate": shift_rate,
                 "current_majority_follow_rate": herd_follow_rate,
                 "moved_to_previous_majority_rate": float(moved_to_prev_majority / n_changed) if n_changed else 0.0,
+                "neighbor_majority_eligible_user_count": neighbor_majority_eligible_users,
+                "changed_to_neighbor_majority_count": changed_to_neighbor_majority,
+                "neighbor_alignment_shift_rate": neighbor_alignment_shift_rate,
+                "neighbor_alignment_among_changers_rate": float(changed_to_neighbor_majority / n_changed) if n_changed else 0.0,
+                "neighbor_alignment_eligible_shift_rate": float(changed_to_neighbor_majority / neighbor_majority_eligible_users) if neighbor_majority_eligible_users else 0.0,
                 "previous_majority_option": prev_majority_option,
                 "current_majority_option": curr_majority_option,
                 "previous_consensus": prev_consensus,
@@ -284,6 +335,7 @@ class SimEngine(engine_lib.Engine):
             herd_follow_rates.append(herd_follow_rate)
             shift_rates.append(shift_rate)
             consensus_gains.append(consensus_gain)
+            neighbor_alignment_shift_rates.append(neighbor_alignment_shift_rate)
 
         if not transitions:
             return {
@@ -310,6 +362,7 @@ class SimEngine(engine_lib.Engine):
             "mean_opinion_shift_rate": float(np.mean(shift_rates)) if shift_rates else 0.0,
             "mean_current_majority_follow_rate": float(np.mean(herd_follow_rates)) if herd_follow_rates else 0.0,
             "mean_consensus_gain": float(np.mean(consensus_gains)) if consensus_gains else 0.0,
+            "mean_neighbor_alignment_shift_rate": float(np.mean(neighbor_alignment_shift_rates)) if neighbor_alignment_shift_rates else 0.0,
             "initial_consensus": float(first_consensus),
             "final_consensus": float(last_consensus),
             "net_consensus_change": float(last_consensus - first_consensus),

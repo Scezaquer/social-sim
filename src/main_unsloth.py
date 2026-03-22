@@ -40,6 +40,11 @@ def load_questions_and_options(file_path, question_number):
 if __name__ == "__main__":
     # Fix paths to be workspace relative
     WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Prevent any Hugging Face network downloads at runtime.
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+    os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--start_time", type=float, help="Start time of the job")
@@ -115,6 +120,7 @@ if __name__ == "__main__":
     print("CUDA available:", torch.cuda.is_available())
     print("GPU name:", torch.cuda.get_device_name(0))
     print("Compute capability:", torch.cuda.get_device_capability(0))
+    print("HF offline mode:", os.environ.get("HF_HUB_OFFLINE"), os.environ.get("TRANSFORMERS_OFFLINE"))
 
     if args.num_agents <= 0:
         raise ValueError("--num_agents must be > 0")
