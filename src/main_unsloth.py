@@ -50,9 +50,9 @@ if __name__ == "__main__":
     scratch_dir = os.environ.get("SCRATCH")
     if scratch_dir:
         default_hf_home = os.path.join(scratch_dir, "HF-cache")
-        os.environ.setdefault("HF_HOME", default_hf_home)
-        os.environ.setdefault("HUGGINGFACE_HUB_CACHE", os.path.join(default_hf_home, "hub"))
-        os.environ.setdefault("TRANSFORMERS_CACHE", os.path.join(default_hf_home, "hub"))
+        # os.environ.setdefault("HF_HOME", default_hf_home)
+        os.environ.setdefault("HUGGINGFACE_HUB_CACHE", default_hf_home)
+        os.environ.setdefault("TRANSFORMERS_CACHE", default_hf_home)
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--start_time", type=float, help="Start time of the job")
