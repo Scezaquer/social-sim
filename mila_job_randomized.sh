@@ -61,7 +61,7 @@ export HF_HUB_CACHE="$SCRATCH/HF-cache"
 export UNSLOTH_CACHE_DIR="$SLURM_TMPDIR/unsloth-cache"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEIGHTS_DIR="$SCRIPT_DIR/proportions"
+WEIGHTS_DIR="./proportions"
 
 QUESTION_CHOICES=(
     "25:genetic_enhancements_tweets.json"
