@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=RandomizedSim
-#SBATCH --array=0-22
+#SBATCH --array=0-100
 #SBATCH --time=6:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
