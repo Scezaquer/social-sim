@@ -2,7 +2,6 @@
 
 from collections.abc import Collection, Sequence
 from typing import Any, Mapping
-import os
 import torch
 
 from concordia.language_model import language_model
@@ -20,35 +19,6 @@ except ImportError as e:
     UNSLOTH_IMPORT_ERROR = e
 
 from transformers import StoppingCriteria, StoppingCriteriaList
-
-try:
-    from huggingface_hub import LocalEntryNotFoundError, snapshot_download
-    HF_HUB_AVAILABLE = True
-except Exception:
-    LocalEntryNotFoundError = Exception  # type: ignore[assignment]
-    snapshot_download = None
-    HF_HUB_AVAILABLE = False
-
-
-def _resolve_local_model_path(model_name: str, cache_dir: str | None) -> str:
-    """Resolve a model repo id to a local snapshot path without network access."""
-    if os.path.isdir(model_name):
-        return model_name
-
-    if not HF_HUB_AVAILABLE:
-        return model_name
-
-    try:
-        return snapshot_download(
-            repo_id=model_name,
-            local_files_only=True,
-            cache_dir=cache_dir,
-        )
-    except LocalEntryNotFoundError as e:
-        raise RuntimeError(
-            f"Model '{model_name}' is not available in local Hugging Face cache"
-            f" (cache_dir={cache_dir!r})."
-        ) from e
 
 class StopOnString(StoppingCriteria):
     def __init__(self, tokenizer, stop_string, prompt_len):
@@ -93,28 +63,15 @@ class UnslothLanguageModel(language_model.LanguageModel):
     self._measurements = measurements
     self._channel = channel
     self._nbr_lora_adapters = 0
-
-    cache_dir = kwargs.get("cache_dir") or os.environ.get("HUGGINGFACE_HUB_CACHE")
-    resolved_model_name = _resolve_local_model_path(model_name, cache_dir)
-
-    # Force local-only loading so Unsloth/Transformers never downloads model files.
-    kwargs.setdefault("local_files_only", True)
-    if cache_dir is not None:
-        kwargs.setdefault("cache_dir", cache_dir)
     
     # Initialize Unsloth model
-    try:
-        self.model, self.tokenizer = FastLanguageModel.from_pretrained(
-            model_name=resolved_model_name,
-            max_seq_length=max_seq_length,
-            dtype=None,
-            load_in_4bit=load_in_4bit,
-            **kwargs
-        )
-    except Exception as e:
-        raise RuntimeError(
-            "Failed to load model with local_files_only=True. Ensure all base model files are already cached locally or provide a local model path."
-        ) from e
+    self.model, self.tokenizer = FastLanguageModel.from_pretrained(
+        model_name=model_name,
+        max_seq_length=max_seq_length,
+        dtype=None,
+        load_in_4bit=load_in_4bit,
+        **kwargs
+    )
     # Ensure the model is a PeftModel to support multiple adapters correctly
     if not hasattr(self.model, "peft_config"):
         from peft import LoraConfig
