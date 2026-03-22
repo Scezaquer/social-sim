@@ -13,6 +13,47 @@ pick_random() {
     echo "${arr_ref[$RANDOM % ${#arr_ref[@]}]}"
 }
 
+extract_lora_id() {
+    local model_file=$1
+
+    if [[ "$model_file" =~ -([0-9]+)-no-focal_token_prob_pop\.pkl$ ]]; then
+        echo "${BASH_REMATCH[1]}"
+    elif [[ "$model_file" =~ -([0-9]+)_token_prob_pop\.pkl$ ]]; then
+        echo "${BASH_REMATCH[1]}"
+    else
+        echo "Could not extract LoRA id from model file name: $model_file" >&2
+        exit 1
+    fi
+}
+
+load_weights_from_csv() {
+    local csv_path=$1
+    local -n out_weights_ref=$2
+    local -a indexed_weights=()
+
+    if [[ ! -f "$csv_path" ]]; then
+        echo "Weights file not found: $csv_path" >&2
+        exit 1
+    fi
+
+    while IFS=, read -r model_file weight; do
+        [[ "$model_file" == "Model_File" ]] && continue
+        [[ -z "$model_file" ]] && continue
+        local idx
+        idx=$(extract_lora_id "$model_file")
+        indexed_weights[$idx]="$weight"
+    done < "$csv_path"
+
+    out_weights_ref=()
+    for ((i = 0; i < NUM_LORAS; i++)); do
+        if [[ -z "${indexed_weights[$i]:-}" ]]; then
+            echo "Missing weight for LoRA id $i in $csv_path" >&2
+            exit 1
+        fi
+        out_weights_ref+=("${indexed_weights[$i]}")
+    done
+}
+
 module load python/3.11
 module load scipy-stack
 source "${NARVAL_VENV_PATH:-../concordia/ENV-concordia/bin/activate}"
@@ -67,7 +108,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("minitaur_loras")
+MODEL_PROFILE_CHOICES=("qwen_loras" "llama3.1_loras" "gemma_loras" "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("uniform" "blueprint" "average" "distribution")
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
@@ -88,42 +129,55 @@ LOCAL_LORAS_PATH=""
 LORA_NAME_TEMPLATE=""
 NUM_LORAS=0
 LORA_INDEX_SET=""
+AVERAGE_WEIGHTS_CSV=""
+DISTRIBUTION_WEIGHTS_CSV=""
 PROPORTIONS=""
 declare -a PROPORTION_VALUES=()
 declare -a LORA_INDICES=()
 
-if [[ "$MODEL_PROFILE" == "minitaur_loras" ]]; then
-    BASE_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"
-    LORAS_PATH="$SCRATCH/marcelbinz"
-    LORA_NAME_TEMPLATE="Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}"
-    NUM_LORAS=25
-    MINITAUR_INDEX_SETS=(
-        "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24"
-        # "0 1 2 3 4"
-        # "5 6 7 8 9"
-        # "10 11 12 13 14"
-        # "15 16 17 18 19"
-        # "20 21 22 23 24"
-        # "0 3 7 11 18 22"
-        # "0 1 2 3 4 5 6 7 8 9"
-    )
-    LORA_INDEX_SET=$(pick_random MINITAUR_INDEX_SETS)
-elif [[ "$MODEL_PROFILE" == "qwen_loras" ]]; then
-    BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
-    LORAS_PATH="$SCRATCH/Qwen"
-    LORA_NAME_TEMPLATE="Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
-    NUM_LORAS=10
-    QWEN_INDEX_SETS=(
-        "0 1 2 3 4 5 6 7 8 9"
-        # "5 6 7 8 9"
-        # "0 2 4 6 8"
-        # "1 3 5 7 9"
-        # "0 1 2 3 4 5 6 7 8 9"
-    )
-    LORA_INDEX_SET=$(pick_random QWEN_INDEX_SETS)
-else
-    BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
-fi
+case "$MODEL_PROFILE" in
+    minitaure_loras)
+        BASE_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"
+        LORAS_PATH="$SCRATCH/marcelbinz"
+        LORA_NAME_TEMPLATE="Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}"
+        NUM_LORAS=25
+        AVERAGE_WEIGHTS_CSV="minitaure_optimized_convex_weights_hard.csv"
+        DISTRIBUTION_WEIGHTS_CSV="minitaure_optimized_convex_weights_cvxpy.csv"
+        ;;
+    qwen_loras)
+        BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
+        LORAS_PATH="$SCRATCH/Qwen"
+        LORA_NAME_TEMPLATE="Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+        NUM_LORAS=25
+        AVERAGE_WEIGHTS_CSV="qwen2.5-7Boptimized_convex_weights_hard.csv"
+        DISTRIBUTION_WEIGHTS_CSV="qwen2.5-7B_optimized_convex_weights_cvxpy.csv"
+        ;;
+    llama3.1_loras)
+        BASE_MODEL="meta-llama/Llama-3.1-8B"
+        LORAS_PATH="$SCRATCH/meta-llama"
+        LORA_NAME_TEMPLATE="Llama-3.1-8B-lora-finetuned-unsloth-{i}"
+        NUM_LORAS=25
+        AVERAGE_WEIGHTS_CSV="llama3.1_optimized_convex_weights_hard.csv"
+        DISTRIBUTION_WEIGHTS_CSV="llama3.1_optimized_convex_weights_cvxpy.csv"
+        ;;
+    gemma_loras)
+        BASE_MODEL="google/gemma-3-4b-pt"
+        LORAS_PATH="$SCRATCH/google"
+        LORA_NAME_TEMPLATE="gemma-3-4b-pt-lora-finetuned-unsloth-{i}_token_prob_pop.pkl"
+        NUM_LORAS=25
+        AVERAGE_WEIGHTS_CSV="gemma_optimized_convex_weights_hard.csv"
+        DISTRIBUTION_WEIGHTS_CSV="gemma_optimized_convex_weights_cvxpy.csv"
+        ;;
+    *)
+        echo "Unknown model profile: $MODEL_PROFILE" >&2
+        exit 1
+        ;;
+esac
+
+MODEL_INDEX_SETS=(
+    "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24"
+)
+LORA_INDEX_SET=$(pick_random MODEL_INDEX_SETS)
 
 SURVEY_OUTPUT="survey_randomized_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 VISUALIZER_OUTPUT="visualizer_randomized_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
@@ -137,6 +191,7 @@ THREADS_OUTPUT="$LOCAL_REPO/simulation_threads_${SLURM_JOB_ID}_${SLURM_ARRAY_TAS
 echo "Staging repository code and data into $LOCAL_REPO"
 mkdir -p "$LOCAL_REPO/src"
 rsync -a "$REPO_ROOT/src/" "$LOCAL_REPO/src/"
+rsync -a "$REPO_ROOT/proportions/" "$LOCAL_REPO/proportions/"
 
 REQUIRED_FILES=(
     "divisive_questions_probabilities.json"
@@ -193,85 +248,44 @@ fi
 if [[ -n "$LORAS_PATH" ]]; then
     read -r -a LORA_INDICES <<< "$LORA_INDEX_SET"
 
-    if [[ "$MODEL_PROFILE" == "minitaur_loras" ]]; then
-        MINITAUR_BLUEPRINT_WEIGHTS=(
-            80578 170583 2225632 107699 257398 406647 1014601 45071 73774
-            4668716 116932 304804 104602 814539 70434 32923 149759 422736
-            900057 43742 62087 739085 164314 212932 491830
-        )
-        MINITAUR_AVERAGE_WEIGHTS=(
-            0 0 0 0 0 0 0.27193296965726726 0 0.13913508605256175 0 0 0 0 0
-            0.2679288109799589 0 0 0 0 0 0 0.024487206302543963 0.20117095954339054 0
-            0.09534496756853536
-        )
-        MINITAUR_DISTRIBUTION_WEIGHTS=(
-            0.08284974529253673 0 6.031361684446227e-14 1.3711747453009344e-13
-            1.4871144523281122e-13 0.019194578110743203 0.2492881841131293 0
-            0.31911160366705815 1.3501072995125138e-15 1.6834892806694375e-13
-            0.02589749033958161 1.2423799577408848e-13 0 0.020674655085774138
-            1.1662445445124316e-13 0 0 1.215824871946409e-13 0.05281378426193962
-            9.317469100983314e-14 0.059985687449042396 0.16185494294730227 0
-            0.008329328720798508
-        )
+    COMMON_BLUEPRINT_WEIGHTS=(
+        80578 170583 2225632 107699 257398 406647 1014601 45071 73774
+        4668716 116932 304804 104602 814539 70434 32923 149759 422736
+        900057 43742 62087 739085 164314 212932 491830
+    )
 
-        case "$PROPORTIONS_OPTION" in
-            uniform)
-                for _ in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("1")
-                done
-                ;;
-            blueprint)
-                for idx in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("${MINITAUR_BLUEPRINT_WEIGHTS[$idx]}")
-                done
-                ;;
-            average)
-                for idx in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("${MINITAUR_AVERAGE_WEIGHTS[$idx]}")
-                done
-                ;;
-            distribution)
-                for idx in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("${MINITAUR_DISTRIBUTION_WEIGHTS[$idx]}")
-                done
-                ;;
-            *)
-                echo "Unknown proportions option: $PROPORTIONS_OPTION" >&2
-                exit 1
-                ;;
-        esac
-    elif [[ "$MODEL_PROFILE" == "qwen_loras" ]]; then
-        QWEN_BLUEPRINT_WEIGHTS=(1 1 1 1 1 1 1 1 1 1)
-        QWEN_AVERAGE_WEIGHTS=(1 2 2 1 1 1 1 1 2 1)
-        QWEN_DISTRIBUTION_WEIGHTS=(4 1 1 1 2 1 1 3 1 1)
+    WEIGHTS_DIR="$LOCAL_REPO/proportions"
+    declare -a CSV_AVERAGE_WEIGHTS=()
+    declare -a CSV_DISTRIBUTION_WEIGHTS=()
+    load_weights_from_csv "$WEIGHTS_DIR/$AVERAGE_WEIGHTS_CSV" CSV_AVERAGE_WEIGHTS
+    load_weights_from_csv "$WEIGHTS_DIR/$DISTRIBUTION_WEIGHTS_CSV" CSV_DISTRIBUTION_WEIGHTS
 
-        case "$PROPORTIONS_OPTION" in
-            uniform)
-                for _ in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("1")
-                done
-                ;;
-            blueprint)
-                for idx in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("${QWEN_BLUEPRINT_WEIGHTS[$idx]}")
-                done
-                ;;
-            average)
-                for idx in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("${QWEN_AVERAGE_WEIGHTS[$idx]}")
-                done
-                ;;
-            distribution)
-                for idx in "${LORA_INDICES[@]}"; do
-                    PROPORTION_VALUES+=("${QWEN_DISTRIBUTION_WEIGHTS[$idx]}")
-                done
-                ;;
-            *)
-                echo "Unknown proportions option: $PROPORTIONS_OPTION" >&2
-                exit 1
-                ;;
-        esac
-    fi
+    case "$PROPORTIONS_OPTION" in
+        uniform)
+            for _ in "${LORA_INDICES[@]}"; do
+                PROPORTION_VALUES+=("1")
+            done
+            ;;
+        blueprint)
+            for idx in "${LORA_INDICES[@]}"; do
+                PROPORTION_VALUES+=("${COMMON_BLUEPRINT_WEIGHTS[$idx]}")
+            done
+            ;;
+        average)
+            for idx in "${LORA_INDICES[@]}"; do
+                PROPORTION_VALUES+=("${CSV_AVERAGE_WEIGHTS[$idx]}")
+            done
+            ;;
+        distribution)
+            for idx in "${LORA_INDICES[@]}"; do
+                PROPORTION_VALUES+=("${CSV_DISTRIBUTION_WEIGHTS[$idx]}")
+            done
+            ;;
+        *)
+            echo "Unknown proportions option: $PROPORTIONS_OPTION" >&2
+            exit 1
+            ;;
+    esac
 
     PROPORTIONS="${PROPORTION_VALUES[*]}"
 
@@ -280,15 +294,20 @@ if [[ -n "$LORAS_PATH" ]]; then
 
     echo "Staging selected LoRAs into $LOCAL_LORAS_PATH"
     for idx in "${LORA_INDICES[@]}"; do
-        lora_dir_name="${LORA_NAME_TEMPLATE//\{i\}/$idx}"
-        source_lora_dir="$LORAS_PATH/$lora_dir_name"
-        target_lora_dir="$LOCAL_LORAS_PATH/$lora_dir_name"
-        if [[ ! -d "$source_lora_dir" ]]; then
-            echo "Missing LoRA directory: $source_lora_dir" >&2
+        lora_name="${LORA_NAME_TEMPLATE//\{i\}/$idx}"
+        source_lora_path="$LORAS_PATH/$lora_name"
+        target_lora_path="$LOCAL_LORAS_PATH/$lora_name"
+
+        if [[ -d "$source_lora_path" ]]; then
+            mkdir -p "$target_lora_path"
+            rsync -a "$source_lora_path/" "$target_lora_path/"
+        elif [[ -f "$source_lora_path" ]]; then
+            mkdir -p "$(dirname "$target_lora_path")"
+            cp -a "$source_lora_path" "$target_lora_path"
+        else
+            echo "Missing LoRA path: $source_lora_path" >&2
             exit 1
         fi
-        mkdir -p "$target_lora_dir"
-        rsync -a "$source_lora_dir/" "$target_lora_dir/"
     done
 
     CMD+=(
@@ -313,6 +332,8 @@ echo "num_loras=${NUM_LORAS}"
 echo "lora_indices=${LORA_INDEX_SET:-none}"
 echo "proportions_option=${PROPORTIONS_OPTION:-none}"
 echo "proportions=${PROPORTIONS:-none}"
+echo "average_weights_csv=${AVERAGE_WEIGHTS_CSV:-none}"
+echo "distribution_weights_csv=${DISTRIBUTION_WEIGHTS_CSV:-none}"
 echo "graph_type=${GRAPH_TYPE}"
 echo "homophily=${HOMOPHILY_FLAG}"
 echo "add_survey_to_context=${SURVEY_CONTEXT_FLAG}"
