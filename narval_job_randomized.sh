@@ -136,7 +136,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("qwen_loras") #"gemma_loras" "llama3.1_loras" "minitaure_loras")
+MODEL_PROFILE_CHOICES=("qwen_loras" "gemma_loras" "llama3.1_loras") # "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("uniform" "blueprint" "average" "distribution")
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
