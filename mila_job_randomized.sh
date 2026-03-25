@@ -146,7 +146,7 @@ case "$MODEL_PROFILE" in
     gemma_loras)
         BASE_MODEL="google/gemma-3-4b-pt"
         LORAS_PATH="$SCRATCH/google"
-        LORA_NAME_TEMPLATE="gemma-3-4b-pt-lora-finetuned-unsloth-{i}_token_prob_pop.pkl"
+        LORA_NAME_TEMPLATE="gemma-3-4b-pt-lora-finetuned-unsloth-{i}"
         NUM_LORAS=25
         AVERAGE_WEIGHTS_CSV="$WEIGHTS_DIR/gemma_optimized_convex_weights_hard.csv"
         DISTRIBUTION_WEIGHTS_CSV="$WEIGHTS_DIR/gemma_optimized_convex_weights_cvxpy.csv"
