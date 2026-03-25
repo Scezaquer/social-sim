@@ -96,7 +96,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
 
   def finalize_inference(self):
     """Call after loading all LoRA adapters to optimize for inference."""
-    FastLanguageModel.for_inference(self.model)
+    self.model = FastLanguageModel.for_inference(self.model)
 
   def increment_lora_adapters(self) -> int:
     self._nbr_lora_adapters += 1
@@ -128,6 +128,12 @@ class UnslothLanguageModel(language_model.LanguageModel):
         self.model.set_adapter(adapter_name)
     
     inputs = self.tokenizer([prompt], return_tensors="pt").to("cuda")
+    
+    # Ensure inputs are in the correct dtype if the model has embedding layers
+    # that might not handle default LongTensor if they were converted (unlikely for IDs, but safe for others)
+    # However, the error is in the linear layer (mat1 and mat2).
+    # mat1 is hidden_states, mat2 is lm_head.weight.
+    
     prompt_len = inputs.input_ids.shape[1]
     
     do_sample = temperature > 0
@@ -149,19 +155,21 @@ class UnslothLanguageModel(language_model.LanguageModel):
         for term in terminators:
             stopping_criteria.append(StopOnString(self.tokenizer, term, prompt_len))
     
+    # Use autocast to ensure operations are performed in bfloat16
     with torch.no_grad():
-        outputs = self.model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            use_cache=True,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            do_sample=do_sample,
-            pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=stop_tokens,
-            stopping_criteria=stopping_criteria,
-        )
+        with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+            outputs = self.model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                use_cache=True,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                do_sample=do_sample,
+                pad_token_id=self.tokenizer.pad_token_id,
+                eos_token_id=stop_tokens,
+                stopping_criteria=stopping_criteria,
+            )
         
     generated_ids = outputs[0][inputs.input_ids.shape[1]:]
     generated_text = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
@@ -202,7 +210,11 @@ class UnslothLanguageModel(language_model.LanguageModel):
             full_text = prompt + response
             inputs = self.tokenizer(full_text, return_tensors="pt").to("cuda")
             
-            outputs = self.model(**inputs)
+            # Use autocast to ensure operations are performed in bfloat16
+            # This is specifically needed for models like Gemma-3 where the unsloth compiler 
+            # might have internal float32/bfloat16 mismatches in the forward pass.
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+                outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
             
             # Calculate log-probs for the ENTIRE sequence once to ensure alignment
