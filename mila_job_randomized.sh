@@ -28,6 +28,20 @@ extract_lora_id() {
     fi
 }
 
+sanitize_weight() {
+    local raw_weight=$1
+    awk -v w="$raw_weight" 'BEGIN {
+        v = w + 0
+        if (v < 0 && v > -1e-9) {
+            v = 0
+        }
+        if (v < 0) {
+            exit 2
+        }
+        printf "%.17g", v
+    }'
+}
+
 load_weights_from_csv() {
     local csv_path=$1
     local -n out_weights_ref=$2
@@ -42,8 +56,13 @@ load_weights_from_csv() {
         [[ "$model_file" == "Model_File" ]] && continue
         [[ -z "$model_file" ]] && continue
         local idx
+        local sanitized_weight
         idx=$(extract_lora_id "$model_file")
-        indexed_weights[$idx]="$weight"
+        if ! sanitized_weight=$(sanitize_weight "$weight"); then
+            echo "Invalid negative weight for LoRA id $idx in $csv_path: $weight" >&2
+            exit 1
+        fi
+        indexed_weights[$idx]="$sanitized_weight"
     done < "$csv_path"
 
     out_weights_ref=()
