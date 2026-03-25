@@ -5,7 +5,7 @@
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=unkillable
+#SBATCH --partition=main
 
 
 set -euo pipefail
@@ -94,7 +94,7 @@ SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
 MODEL_PROFILE_CHOICES=("qwen_loras" "gemma_loras") # "llama3.1_loras" "minitaure_loras")
-PROPORTIONS_OPTION_CHOICES=("average" "distribution") # "uniform" "blueprint" )
+PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
 QUESTION_NUMBER="${QUESTION_PICK%%:*}"

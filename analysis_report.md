@@ -1,6 +1,8 @@
 # Analysis of Randomized LLM-Based Social Simulation Experiments
 
-To update: ignore all runs with num_agents not in {64, 256, 1024, 4096}
+To update:
+Ignore all runs with num_agents not in {64, 256, 1024, 4096}.
+There are now more base_model, include the new ones in the analysis. If you can find interesting patterns with them go ahead.
 
 **Dataset:** 159 completed simulation runs across three questions (Q25: genetic enhancements, Q28: AI copyright, Q29: environmental protection), varying seven independent parameters.
 
