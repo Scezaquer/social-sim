@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=def-rrabba
 #SBATCH --job-name=RandomizedSim
-#SBATCH --array=0-19
+#SBATCH --array=0-200
 #SBATCH --time=6:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
@@ -171,7 +171,7 @@ case "$MODEL_PROFILE" in
         ;;
     qwen_loras)
         BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
-        LORAS_PATH="$SCRATCH/Qwen"
+        LORAS_PATH="$SCRATCH/qwen-loras"
         LORA_NAME_TEMPLATE="Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
         NUM_LORAS=25
         AVERAGE_WEIGHTS_CSV="qwen2.5-7Boptimized_convex_weights_hard.csv"

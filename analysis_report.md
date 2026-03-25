@@ -1,8 +1,7 @@
 # Analysis of Randomized LLM-Based Social Simulation Experiments
 
 To update:
-Ignore all runs with num_agents not in {64, 256, 1024, 4096}.
-There are now more base_model, include the new ones in the analysis. If you can find interesting patterns with them go ahead.
+Ignore all runs with num_agents not in {64, 256, 1024, 4096}. There are now more base_model, include the new ones in the analysis. See if you can find other interesting things with them. Update this report. You see that num_agents dominates, double check that this is an actual real result, and not just metrics being bigger when there are more agents because they aren't normalized.
 
 **Dataset:** 159 completed simulation runs across three questions (Q25: genetic enhancements, Q28: AI copyright, Q29: environmental protection), varying seven independent parameters.
 
