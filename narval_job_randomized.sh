@@ -238,6 +238,7 @@ done
 MODEL_CACHE_DIR="models--${BASE_MODEL//\//--}"
 SOURCE_HF_HUB_CACHE=""
 SOURCE_MODEL_CACHE_DIR=""
+RESOLVED_BASE_MODEL=""
 
 # Resolve the source HF cache root across common layouts on clusters.
 SOURCE_CACHE_CANDIDATES=(
@@ -271,6 +272,30 @@ echo "Staging model cache for $BASE_MODEL into $LOCAL_MODEL_CACHE_DIR"
 mkdir -p "$LOCAL_MODEL_CACHE_DIR"
 rsync -a "$SOURCE_MODEL_CACHE_DIR/" "$LOCAL_MODEL_CACHE_DIR/"
 
+if [[ -f "$LOCAL_MODEL_CACHE_DIR/refs/main" ]]; then
+    SNAPSHOT_REVISION=$(<"$LOCAL_MODEL_CACHE_DIR/refs/main")
+    SNAPSHOT_REVISION="${SNAPSHOT_REVISION//$'\r'/}"
+    SNAPSHOT_REVISION="${SNAPSHOT_REVISION//$'\n'/}"
+    RESOLVED_BASE_MODEL="$LOCAL_MODEL_CACHE_DIR/snapshots/$SNAPSHOT_REVISION"
+fi
+
+if [[ -z "$RESOLVED_BASE_MODEL" ]]; then
+    snapshot_candidates=("$LOCAL_MODEL_CACHE_DIR"/snapshots/*)
+    if [[ -e "${snapshot_candidates[0]}" ]]; then
+        RESOLVED_BASE_MODEL="${snapshot_candidates[0]}"
+    fi
+fi
+
+if [[ -z "$RESOLVED_BASE_MODEL" ]] || [[ ! -d "$RESOLVED_BASE_MODEL" ]]; then
+    echo "Could not resolve local snapshot directory for $BASE_MODEL under $LOCAL_MODEL_CACHE_DIR" >&2
+    exit 1
+fi
+
+if [[ ! -f "$RESOLVED_BASE_MODEL/config.json" ]]; then
+    echo "Resolved model path does not contain config.json: $RESOLVED_BASE_MODEL" >&2
+    exit 1
+fi
+
 CMD=(
     python -u "$LOCAL_REPO/src/main_unsloth.py"
     --survey_output "$LOCAL_SURVEY_OUTPUT"
@@ -278,7 +303,7 @@ CMD=(
     --job_id "${SLURM_JOB_ID}"
     --question_number "$QUESTION_NUMBER"
     --tweet_files "$TWEET_FILE"
-    --base_model "$BASE_MODEL"
+    --base_model "$RESOLVED_BASE_MODEL"
     --num_agents "$NUM_AGENTS"
     --num_news_agents "$NUM_NEWS_AGENTS"
     --visualizer_output "$LOCAL_VISUALIZER_OUTPUT"
@@ -375,6 +400,7 @@ echo "job_id=${SLURM_JOB_ID}"
 echo "array_id=${SLURM_ARRAY_TASK_ID}"
 echo "model_profile=${MODEL_PROFILE}"
 echo "base_model=${BASE_MODEL}"
+echo "resolved_base_model=${RESOLVED_BASE_MODEL}"
 echo "loras_path=${LORAS_PATH:-none}"
 echo "local_loras_path=${LOCAL_LORAS_PATH:-none}"
 echo "lora_name_template=${LORA_NAME_TEMPLATE:-none}"
