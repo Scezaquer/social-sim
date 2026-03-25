@@ -36,7 +36,7 @@ sanitize_weight() {
     local raw_weight=$1
     awk -v w="$raw_weight" 'BEGIN {
         v = w + 0
-        if (v < 0 && v > -1e-9) {
+        if (v < 0) {
             v = 0
         }
         if (v < 0) {
