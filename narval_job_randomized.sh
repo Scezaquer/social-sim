@@ -3,8 +3,14 @@
 #SBATCH --job-name=RandomizedSim
 #SBATCH --array=0-19
 #SBATCH --time=6:00:00
-#SBATCH --mem-per-cpu=64G
+#SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
+
+# source ../concordia/ENV-concordia/bin/activate
+# python src/main_unsloth.py --base_model "Qwen/Qwen2.5-7B-Instruct" --loras_path "$SCRATCH/Qwen" --lora_name_template "Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+# python src/main_unsloth.py --base_model "marcelbinz/Llama-3.1-Minitaur-8B" --loras_path "$SCRATCH/marcelbinz" --lora_name_template "Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}"
+# python src/main_unsloth.py --base_model "meta-llama/Llama-3.1-8B" --loras_path "$SCRATCH/meta-llama" --lora_name_template "Llama-3.1-8B-lora-finetuned-unsloth-{i}"
+# python src/main_unsloth.py --base_model "google/gemma-3-4b-pt" --loras_path "$SCRATCH/google" --lora_name_template "gemma-3-4b-pt-lora-finetuned-unsloth-{i}"
 
 set -euo pipefail
 
