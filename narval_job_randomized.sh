@@ -105,6 +105,9 @@ mkdir -p "$LOCAL_REPO" "$LOCAL_HF_HUB_CACHE" "$LOCAL_UNSLOTH_CACHE_DIR" "$LOCAL_
 export HF_HOME="$LOCAL_HF_HOME"
 export HF_HUB_CACHE="$LOCAL_HF_HUB_CACHE"
 export TRANSFORMERS_CACHE="$LOCAL_HF_HUB_CACHE"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export HF_DATASETS_OFFLINE=1
 export UNSLOTH_CACHE_DIR="$LOCAL_UNSLOTH_CACHE_DIR"
 export TMPDIR="$SLURM_TMPDIR"
 export TOKENIZERS_PARALLELISM=false
@@ -232,19 +235,41 @@ for file_name in "${REQUIRED_FILES[@]}"; do
     cp -a "$REPO_ROOT/$file_name" "$LOCAL_REPO/$file_name"
 done
 
-SOURCE_HF_HUB_CACHE="${SOURCE_HF_HUB_CACHE:-$SCRATCH/HF-cache/hub}"
 MODEL_CACHE_DIR="models--${BASE_MODEL//\//--}"
-SOURCE_MODEL_CACHE_DIR="$SOURCE_HF_HUB_CACHE/$MODEL_CACHE_DIR"
+SOURCE_HF_HUB_CACHE=""
+SOURCE_MODEL_CACHE_DIR=""
+
+# Resolve the source HF cache root across common layouts on clusters.
+SOURCE_CACHE_CANDIDATES=(
+    "${SOURCE_HF_HUB_CACHE:-}"
+    "${SOURCE_HF_HOME:-}/hub"
+    "${SOURCE_HF_HOME:-}"
+    "$SCRATCH/HF-cache/hub"
+    "$SCRATCH/HF-cache"
+)
+for candidate in "${SOURCE_CACHE_CANDIDATES[@]}"; do
+    [[ -z "$candidate" ]] && continue
+    if [[ -d "$candidate/$MODEL_CACHE_DIR" ]]; then
+        SOURCE_HF_HUB_CACHE="$candidate"
+        SOURCE_MODEL_CACHE_DIR="$candidate/$MODEL_CACHE_DIR"
+        break
+    fi
+done
+
+if [[ -z "$SOURCE_MODEL_CACHE_DIR" ]]; then
+    echo "Could not find cached model $MODEL_CACHE_DIR in any source HF cache root." >&2
+    echo "Checked candidates:" >&2
+    for candidate in "${SOURCE_CACHE_CANDIDATES[@]}"; do
+        [[ -n "$candidate" ]] && echo "  - $candidate" >&2
+    done
+    exit 1
+fi
+
 LOCAL_MODEL_CACHE_DIR="$LOCAL_HF_HUB_CACHE/$MODEL_CACHE_DIR"
 
 echo "Staging model cache for $BASE_MODEL into $LOCAL_MODEL_CACHE_DIR"
-if [[ -d "$SOURCE_MODEL_CACHE_DIR" ]]; then
-    mkdir -p "$LOCAL_MODEL_CACHE_DIR"
-    rsync -a "$SOURCE_MODEL_CACHE_DIR/" "$LOCAL_MODEL_CACHE_DIR/"
-else
-    echo "Expected model cache not found at $SOURCE_MODEL_CACHE_DIR" >&2
-    exit 1
-fi
+mkdir -p "$LOCAL_MODEL_CACHE_DIR"
+rsync -a "$SOURCE_MODEL_CACHE_DIR/" "$LOCAL_MODEL_CACHE_DIR/"
 
 CMD=(
     python -u "$LOCAL_REPO/src/main_unsloth.py"
