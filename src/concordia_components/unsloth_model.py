@@ -142,7 +142,14 @@ class UnslothLanguageModel(language_model.LanguageModel):
     stop_tokens = [self.tokenizer.eos_token_id]
     # Only add <|im_end|> as a stop token ID if it exists in the original vocabulary
     # to avoid "out of bounds" errors if it's not a single token.
-    im_end_id = self.tokenizer.vocab.get("<|im_end|>", None)
+    # For some models like Gemma-3, self.tokenizer might be a Processor.
+    if hasattr(self.tokenizer, "vocab"):
+        im_end_id = self.tokenizer.vocab.get("<|im_end|>", None)
+    elif hasattr(self.tokenizer, "get_vocab"):
+        im_end_id = self.tokenizer.get_vocab().get("<|im_end|>", None)
+    else:
+        im_end_id = None
+        
     if im_end_id is not None:
         stop_tokens.append(im_end_id)
 
