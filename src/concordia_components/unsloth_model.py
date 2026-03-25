@@ -39,36 +39,6 @@ class StopOnString(StoppingCriteria):
 class UnslothLanguageModel(language_model.LanguageModel):
   """Language model wrapper for Unsloth local inference."""
 
-  def _get_inference_dtype(self) -> torch.dtype:
-    """Best-effort dtype discovery for model forward inputs."""
-    model_dtype = getattr(self.model, "dtype", None)
-    if isinstance(model_dtype, torch.dtype):
-        return model_dtype
-
-    lm_head = getattr(self.model, "lm_head", None)
-    if lm_head is not None and hasattr(lm_head, "weight"):
-        return lm_head.weight.dtype
-
-    for param in self.model.parameters():
-        if param.is_floating_point():
-            return param.dtype
-
-    return torch.float32
-
-  def _prepare_inputs_for_inference(self, model_inputs):
-    """Move tokenizer outputs to CUDA and align floating tensors to model dtype."""
-    expected_dtype = self._get_inference_dtype()
-    prepared_inputs = {}
-    for key, value in model_inputs.items():
-        if isinstance(value, torch.Tensor):
-            tensor = value.to("cuda", non_blocking=True)
-            if tensor.is_floating_point() and tensor.dtype != expected_dtype:
-                tensor = tensor.to(dtype=expected_dtype)
-            prepared_inputs[key] = tensor
-        else:
-            prepared_inputs[key] = value
-    return prepared_inputs
-
   def __init__(
       self,
       model_name: str,
@@ -157,9 +127,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
     if adapter_name:
         self.model.set_adapter(adapter_name)
     
-    inputs = self._prepare_inputs_for_inference(
-        self.tokenizer([prompt], return_tensors="pt")
-    )
+    inputs = self.tokenizer([prompt], return_tensors="pt").to("cuda")
     prompt_len = inputs.input_ids.shape[1]
     
     do_sample = temperature > 0
@@ -232,9 +200,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
     with torch.no_grad():
         for response in responses:
             full_text = prompt + response
-            inputs = self._prepare_inputs_for_inference(
-                self.tokenizer(full_text, return_tensors="pt")
-            )
+            inputs = self.tokenizer(full_text, return_tensors="pt").to("cuda")
             
             outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
@@ -261,11 +227,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
                 num_resp_tokens = max(0, min(1, token_log_probs_all.shape[0]))
             
             # Take log-probs from the end of the combined sequence
-            response_log_probs = (
-                token_log_probs_all[-num_resp_tokens:]
-                if num_resp_tokens > 0
-                else torch.tensor([], device="cuda", dtype=token_log_probs_all.dtype)
-            )
+            response_log_probs = token_log_probs_all[-num_resp_tokens:] if num_resp_tokens > 0 else torch.tensor([], device="cuda")
             
             total_logprob = response_log_probs.sum().item()
             logprobs.append(total_logprob)
