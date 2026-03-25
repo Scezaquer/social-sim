@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=def-rrabba
 #SBATCH --job-name=RandomizedSim
-#SBATCH --array=0-75
+#SBATCH --array=0-200
 #SBATCH --time=10:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
