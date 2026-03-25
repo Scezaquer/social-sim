@@ -136,6 +136,7 @@ if __name__ == "__main__":
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
         load_in_4bit=False,
+        local_files_only=True,
     )
 
     # Number of total actions from each cluster in the training data
