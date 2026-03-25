@@ -68,7 +68,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
     self.model, self.tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
         max_seq_length=max_seq_length,
-        dtype=None,
+        dtype=torch.bfloat16,
         load_in_4bit=load_in_4bit,
         **kwargs
     )
@@ -227,7 +227,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
                 num_resp_tokens = max(0, min(1, token_log_probs_all.shape[0]))
             
             # Take log-probs from the end of the combined sequence
-            response_log_probs = token_log_probs_all[-num_resp_tokens:] if num_resp_tokens > 0 else torch.tensor([], device="cuda")
+            response_log_probs = token_log_probs_all[-num_resp_tokens:] if num_resp_tokens > 0 else torch.tensor([], device="cuda", dtype=token_log_probs_all.dtype)
             
             total_logprob = response_log_probs.sum().item()
             logprobs.append(total_logprob)
