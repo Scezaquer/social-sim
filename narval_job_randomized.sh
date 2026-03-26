@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=def-rrabba
 #SBATCH --job-name=RandomizedSim
-#SBATCH --array=0-12
+#SBATCH --array=0-150
 #SBATCH --time=12:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
@@ -134,9 +134,9 @@ QUESTION_CHOICES=(
 GRAPH_CHOICES=("random" "powerlaw")
 HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
-NUM_AGENTS_CHOICES=(4096) #(64 256 1024 4096)
+NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("gemma_loras") #"qwen_loras" "llama3.1_loras" "minitaure_loras")
+MODEL_PROFILE_CHOICES=("gemma_loras" "qwen_loras" "llama3.1_loras" "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("uniform" "blueprint" "average" "distribution")
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
