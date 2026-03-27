@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account=def-rrabba
+#SBATCH --account=ctb-liyue
 #SBATCH --job-name=RandomizedSim
 #SBATCH --array=0-75
 #SBATCH --time=12:00:00
