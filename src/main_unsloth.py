@@ -220,7 +220,7 @@ if __name__ == "__main__":
         model_counts["Model_"+str(model_id)] += 1
         prompt = ""
         if args.base_only:
-            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread."
+            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Try to keep your messages short."
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
 
