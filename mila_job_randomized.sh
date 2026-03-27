@@ -93,7 +93,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("qwen_loras" "gemma_loras") # "llama3.1_loras" "minitaure_loras")
+MODEL_PROFILE_CHOICES=("qwen_base") # "qwen_loras" "gemma_loras") # "llama3.1_loras" "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
@@ -119,6 +119,10 @@ PROPORTIONS=""
 declare -a PROPORTION_VALUES=()
 
 case "$MODEL_PROFILE" in
+    qwen_base)
+        BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
+        PROPORTIONS_OPTION=""
+        ;;
     minitaure_loras)
         BASE_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"
         LORAS_PATH="$SCRATCH/marcelbinz"
@@ -177,6 +181,10 @@ CMD=(
     --num_news_agents "$NUM_NEWS_AGENTS"
     --visualizer_output "$VISUALIZER_OUTPUT"
 )
+
+if [[ "$MODEL_PROFILE" == "qwen_base" ]]; then
+    CMD+=(--base_only)
+fi
 
 if [[ "$GRAPH_TYPE" == "random" ]]; then
     CMD+=(--random_graph)
