@@ -136,7 +136,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("gemma_loras" "qwen_loras" "llama3.1_loras" "minitaure_loras")
+MODEL_PROFILE_CHOICES=("qwen_base") # "gemma_loras" "qwen_loras" "llama3.1_loras" "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("uniform" "blueprint" "average" "distribution")
 
 QUESTION_PICK=$(pick_random QUESTION_CHOICES)
@@ -164,6 +164,10 @@ declare -a PROPORTION_VALUES=()
 declare -a LORA_INDICES=()
 
 case "$MODEL_PROFILE" in
+    qwen_base)
+        BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
+        PROPORTIONS_OPTION=""
+        ;;
     minitaure_loras)
         BASE_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"
         LORAS_PATH="$SCRATCH/marcelbinz"
@@ -272,6 +276,35 @@ echo "Staging model cache for $BASE_MODEL into $LOCAL_MODEL_CACHE_DIR"
 mkdir -p "$LOCAL_MODEL_CACHE_DIR"
 rsync -a "$SOURCE_MODEL_CACHE_DIR/" "$LOCAL_MODEL_CACHE_DIR/"
 
+LOCAL_HF_DATASETS_CACHE="$LOCAL_HF_HOME/datasets"
+LOCAL_PERSONAS_DATASET_DIR="$LOCAL_HF_DATASETS_CACHE/Tianyi-Lab___personas"
+SOURCE_PERSONAS_DATASET_DIR=""
+
+SOURCE_DATASET_CANDIDATES=(
+    "${SOURCE_HF_HOME:-}/datasets/Tianyi-Lab___personas"
+    "$SCRATCH/HF-cache/datasets/Tianyi-Lab___personas"
+)
+for candidate in "${SOURCE_DATASET_CANDIDATES[@]}"; do
+    [[ -z "$candidate" ]] && continue
+    if [[ -d "$candidate" ]]; then
+        SOURCE_PERSONAS_DATASET_DIR="$candidate"
+        break
+    fi
+done
+
+if [[ -z "$SOURCE_PERSONAS_DATASET_DIR" ]]; then
+    echo "Could not find HF datasets cache for Tianyi-Lab___personas." >&2
+    echo "Checked candidates:" >&2
+    for candidate in "${SOURCE_DATASET_CANDIDATES[@]}"; do
+        [[ -n "$candidate" ]] && echo "  - $candidate" >&2
+    done
+    exit 1
+fi
+
+echo "Staging HF dataset cache Tianyi-Lab___personas into $LOCAL_PERSONAS_DATASET_DIR"
+mkdir -p "$LOCAL_PERSONAS_DATASET_DIR"
+rsync -a "$SOURCE_PERSONAS_DATASET_DIR/" "$LOCAL_PERSONAS_DATASET_DIR/"
+
 if [[ -f "$LOCAL_MODEL_CACHE_DIR/refs/main" ]]; then
     SNAPSHOT_REVISION=$(<"$LOCAL_MODEL_CACHE_DIR/refs/main")
     SNAPSHOT_REVISION="${SNAPSHOT_REVISION//$'\r'/}"
@@ -309,6 +342,10 @@ CMD=(
     --visualizer_output "$LOCAL_VISUALIZER_OUTPUT"
     --metrics_output "$LOCAL_METRICS_OUTPUT"
 )
+
+if [[ "$MODEL_PROFILE" == "qwen_base" ]]; then
+    CMD+=(--base_only)
+fi
 
 if [[ "$GRAPH_TYPE" == "random" ]]; then
     CMD+=(--random_graph)
