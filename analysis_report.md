@@ -185,6 +185,72 @@ All pairwise differences are statistically significant except Llama3.1 vs Qwen (
 
 The null result holds with the larger dataset. Presence vs absence of a news agent has no significant effect on consensus change (*p* = 0.61), opinion shift rate (*p* = 0.61), or BERT detectability (*p* = 0.17). A single news agent among hundreds does not measurably alter simulation dynamics.
 
+### 3.9 Parameter Interactions: Mostly Additive, with One Critical Non-Linearity
+
+To assess whether parameters combine additively (knowing A increases X and B increases X implies A+B increases X more than either alone), we computed 2×2 interaction contrasts for all key binary parameter pairs and examined whether the effect of each parameter is consistent across levels of the others.
+
+**Variance explained by each parameter individually** (η², single-factor):
+
+| Metric | Dominant factor | η² | Secondary |
+|---|---|---|---|
+| opinion_shift_rate | num_agents | **0.346** | model 0.076, question 0.032 |
+| net_consensus_change | model | **0.075** | ctx 0.053, prop_opt 0.028 |
+| BERT accuracy | ctx | **0.357** | model 0.126 |
+| Δ assortativity | homophily | **0.092** | num_agents 0.041 |
+
+The sum of all individual η² values falls well below 1.0 for each metric, reflecting both residual noise and potential interactions.
+
+#### Where the space is approximately additive
+
+**num_agents × model → OSR.** The negative scaling of OSR with population size holds consistently across all four models (r = −0.38 to −0.71, all *p* < 0.001). The direction and approximate magnitude of each model's OSR offset are preserved at every population size; no meaningful interaction.
+
+**homophily → Δ assortativity.** The homophily effect is significant within every model and at every population size tested (all *p* < 0.02, consistent direction). The magnitude varies somewhat, but there is no reversal or suppression.
+
+**ctx + news → BERT accuracy.** The interaction contrast is essentially zero (IC = −0.006): survey context and news agents contribute independently to detection accuracy.
+
+#### Where it is not additive
+
+**1. Model × survey_context → consensus change (strongest non-linearity)**
+
+The survey context benefit on consensus change is entirely concentrated in two models:
+
+| Model | ctx=True | ctx=False | Δ | *p* |
+|---|---|---|---|---|
+| Llama-3.1-8B | +0.041 | −0.087 | **+0.128** | *p* = 0.001 ** |
+| Qwen | −0.004 | −0.131 | **+0.128** | *p* < 0.001 *** |
+| Minitaur | −0.110 | −0.107 | −0.003 | *p* = 0.89 (ns) |
+| Gemma | +0.020 | −0.001 | +0.021 | *p* = 0.64 (ns) |
+
+For Minitaur and Gemma, survey context has no effect on consensus. For Llama3.1 and Qwen it is the dominant driver, shifting the mean by +0.13. A purely additive model would predict a uniform uplift from ctx regardless of model; the data show the opposite — the effect only exists for two of the four models.
+
+**2. Survey context × num_agents → majority_follow_rate**
+
+The ctx effect on herding is absent at small populations and grows with scale:
+
+| num_agents | ctx effect on MFR | *p* |
+|---|---|---|
+| 64 | −0.015 | *p* = 0.21 (ns) |
+| 256 | +0.026 | *p* = 0.002 ** |
+| 1024 | +0.057 | *p* < 0.001 *** |
+| 4096 | +0.055 | *p* = 0.001 ** |
+
+At 64 agents, providing the survey in context has no effect on whether agents follow the majority. At 1024+ agents, the effect is substantial (d ≈ 0.46 on the full sample). The two parameters are synergistic: you only see the survey-context herding effect at larger population sizes.
+
+**3. Homophily × graph_type → Δ assortativity**
+
+Powerlaw topology affects assortativity change only when homophily is also active:
+
+| | homophily=False | homophily=True |
+|---|---|---|
+| random graph | +0.0004 | −0.071 |
+| powerlaw graph | +0.0033 | −0.030 |
+
+The interaction contrast is +0.038: powerlaw graphs partially dampen the homophily-driven assortativity collapse (−0.030 vs −0.071), but this effect exists only in the homophilic condition. In non-homophilic networks, graph topology has near-zero effect on assortativity dynamics.
+
+#### Summary of additivity
+
+The parameter space is approximately linear for the dominant effects (OSR scaling with agents, homophily → assortativity, model-level differences). The main exception is survey context, whose effect on consensus change is gated by model identity and whose effect on herding is gated by population size. Predicting the combined effect of ctx + model (or ctx + num_agents) from their marginal effects in isolation would give systematically wrong answers for these metrics.
+
 ---
 
 ## 4. Summary Table
@@ -208,6 +274,11 @@ The null result holds with the larger dataset. Presence vs absence of a news age
 | NASR: Gemma vs Minitaur | Cohen's *d* = 1.10 | *p* < 0.001 *** | 0.099 vs 0.060 |
 | NASR ↔ opinion shift rate | r = +0.924 | *p* < 0.001 *** | NASR tracks same volatility signal |
 | NASR ↓ with num_agents | r = −0.42 | *p* < 0.001 *** | Mirrors OSR scaling |
+| **Interactions** | | | |
+| model × ctx → consensus change | IC = ±0.128 | *p* < 0.001 *** (Llama/Qwen only) | Non-additive: ctx only helps 2 of 4 models |
+| ctx × num_agents → majority_follow_rate | IC grows with scale | ns at 64, *p* < 0.001 at 1024+ | Synergistic: herding effect emerges at scale |
+| homophily × graph_type → Δ assortativity | IC = +0.038 | Powerlaw dampens homophily effect | Only matters when homophily is active |
+| num_agents × model → OSR | consistent r = −0.38 to −0.71 | All *p* < 0.001 | **Additive**: effect holds across all models |
 
 ---
 

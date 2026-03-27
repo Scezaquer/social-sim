@@ -107,6 +107,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
     parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
+    parser.add_argument("--base_only", action="store_true", help="Use only the base model for all agents, ignoring any LoRAs")
 
     args = parser.parse_args()
 
@@ -120,10 +121,13 @@ if __name__ == "__main__":
         raise ValueError("--num_agents must be > 0")
     if args.num_news_agents < 0:
         raise ValueError("--num_news_agents must be >= 0")
-    if args.num_loras <= 0:
-        raise ValueError("--num_loras must be > 0")
-    if "{i}" not in args.lora_name_template:
-        raise ValueError("--lora_name_template must contain '{i}'")
+    if args.base_only and args.loras_path:
+        print("Warning: --base_only is set, so LoRA models at --loras_path will be ignored.")
+    if not args.base_only:
+        if args.num_loras <= 0:
+            raise ValueError("--num_loras must be > 0")
+        if "{i}" not in args.lora_name_template:
+            raise ValueError("--lora_name_template must contain '{i}'")
 
     NUM_ENTITIES = args.num_agents
     VLLM_MODEL_NAME = args.base_model
@@ -150,7 +154,7 @@ if __name__ == "__main__":
     models = []
     loaded_lora_indices = []
 
-    if args.loras_path:
+    if args.loras_path and not args.base_only:
         if args.lora_indices is None:
             candidate_indices = list(range(args.num_loras))
         else:
@@ -174,7 +178,7 @@ if __name__ == "__main__":
         print("No LoRA path provided. Using base model for all agents.")
         models.append(base_model)
 
-    if args.proportions is not None:
+    if args.proportions is not None and not args.base_only:
         proportions = np.array(args.proportions, dtype=float)
         if len(proportions) != len(models):
             raise ValueError(
@@ -214,7 +218,10 @@ if __name__ == "__main__":
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
-        user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context)
+        prompt = ""
+        if args.base_only:
+            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread."
+        user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
 
     generic_news_source_names = [

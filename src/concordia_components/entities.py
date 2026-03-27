@@ -76,7 +76,8 @@ class User(entity.EntityWithLogging):
                  action_classifier = None,
                  logs: dict[str, Any] = None,
                  initial_opinion: dict[str, float] = None,
-                 add_survey_to_context: bool = False
+                 add_survey_to_context: bool = False,
+                 system_prompt: str = ""
                  ):
         """Initialize the user."""
         self._model = model
@@ -90,6 +91,7 @@ class User(entity.EntityWithLogging):
         self._pending_prompt = None
         self._initial_opinion = initial_opinion
         self._add_survey_to_context = add_survey_to_context
+        self._system_prompt = system_prompt
 
     @override
     @functools.cached_property
@@ -107,7 +109,9 @@ class User(entity.EntityWithLogging):
             self._context = self._context[-self._max_messages:]
         
         while len(self._context) > 0:
-            prompt = self._model.apply_chat_template(self._context, add_generation_prompt=True)
+            if self._system_prompt:
+                ctx = [{"role": "system", "content": self._system_prompt}] + self._context
+            prompt = self._model.apply_chat_template(ctx if self._system_prompt else self._context, add_generation_prompt=True)
             if len(prompt) < self._max_length:
                 return prompt
             
@@ -119,7 +123,9 @@ class User(entity.EntityWithLogging):
                 return prompt
 
         self._context = [{"role": "system", "content": "### New Thread ###\nWrite a post for a new conversation thread."}]
-        return self._model.apply_chat_template(self._context, add_generation_prompt=True)
+        if self._system_prompt:
+            ctx = [{"role": "system", "content": self._system_prompt}] + self._context
+        return self._model.apply_chat_template(ctx if self._system_prompt else self._context, add_generation_prompt=True)
 
     def complete_action(self, response: str) -> str:
         """Completes the action with the generated response."""
@@ -152,6 +158,8 @@ class User(entity.EntityWithLogging):
             temp_context = temp_context[-self._max_messages:]
         
         temp_context.append({"role": "user", "content": question})
+        if self._system_prompt:
+            temp_context = [{"role": "system", "content": self._system_prompt}] + temp_context
         while len(temp_context) > 0:
             prompt = self._model.apply_chat_template(temp_context, add_generation_prompt=True)
             if len(prompt) < self._max_length:

@@ -865,6 +865,177 @@ r_val, p_val, n = pearson_r(as_deltas, as_ncc)
 print(f"  r={r_val:.4f}, p={p_val:.6f} {sig(p_val)}, n={n}")
 
 
+# ---------------------------------------------------------------------------
+# Section 3.9: Parameter interactions
+# ---------------------------------------------------------------------------
+
+section("SECTION 3.9 — PARAMETER INTERACTIONS")
+
+
+def interaction_2x2(label_a, label_b, metric_label, a_fn, b_fn, metric_fn, filter_fn=None):
+    """Compute 2x2 interaction contrast IC = mean_11 - mean_10 - mean_01 + mean_00."""
+    if filter_fn is None:
+        filter_fn = lambda r: True
+    cells = {}
+    for av in [False, True]:
+        for bv in [False, True]:
+            vals = [metric_fn(r) for r in runs
+                    if filter_fn(r) and a_fn(r) == av and b_fn(r) == bv
+                    and metric_fn(r) is not None]
+            cells[(av, bv)] = vals
+    means = {k: statistics.mean(v) if v else None for k, v in cells.items()}
+    ns = {k: len(v) for k, v in cells.items()}
+    if any(v is None for v in means.values()) or any(n < 2 for n in ns.values()):
+        print(f"  [{metric_label}] {label_a} x {label_b}: insufficient data")
+        return None
+    ic = means[(True, True)] - means[(True, False)] - means[(False, True)] + means[(False, False)]
+    eff_b_a0 = means[(False, True)] - means[(False, False)]
+    eff_b_a1 = means[(True, True)] - means[(True, False)]
+    print(f"  [{metric_label}] {label_a} x {label_b}:")
+    print(f"    {label_a}=F/{label_b}=F={means[(False,False)]:.4f}(n={ns[(False,False)]})  "
+          f"{label_a}=F/{label_b}=T={means[(False,True)]:.4f}(n={ns[(False,True)]})")
+    print(f"    {label_a}=T/{label_b}=F={means[(True,False)]:.4f}(n={ns[(True,False)]})  "
+          f"{label_a}=T/{label_b}=T={means[(True,True)]:.4f}(n={ns[(True,True)]})")
+    print(f"    Effect of {label_b} given {label_a}=F: {eff_b_a0:+.4f}")
+    print(f"    Effect of {label_b} given {label_a}=T: {eff_b_a1:+.4f}")
+    print(f"    Interaction contrast (IC): {ic:+.4f}")
+    return ic
+
+
+def eta_sq_single(group_fn, metric_fn, label):
+    vals_all = [metric_fn(r) for r in runs if metric_fn(r) is not None]
+    if len(vals_all) < 5:
+        return None
+    grand = statistics.mean(vals_all)
+    ss_total = sum((v - grand) ** 2 for v in vals_all)
+    if ss_total == 0:
+        return None
+    groups = collections.defaultdict(list)
+    for r in runs:
+        m = metric_fn(r)
+        g = group_fn(r)
+        if m is not None and g is not None:
+            groups[g].append(m)
+    ss_between = sum(len(v) * (statistics.mean(v) - grand) ** 2 for v in groups.values() if v)
+    eta2 = ss_between / ss_total
+    print(f"    {label}: η²={eta2:.3f}")
+    return eta2
+
+
+# Compute per-run d_assort (for interaction tests)
+for r in runs:
+    bs = r["by_survey"]
+    v0 = bs[0].get("network_assortativity") if bs else None
+    v1 = bs[-1].get("network_assortativity") if bs else None
+    r["d_assort"] = (v1 - v0) if v0 is not None and v1 is not None else None
+
+
+sub("Variance decomposition (η²) — net_consensus_change  [report: model=0.075, ctx=0.053]")
+for param, fn in [
+    ("model",     lambda r: r["model"]),
+    ("num_agents", lambda r: r["num_agents"]),
+    ("ctx",        lambda r: r["add_survey_to_context"]),
+    ("homophily",  lambda r: r["homophily"]),
+    ("graph_type", lambda r: r["graph_type"]),
+    ("prop_opt",   lambda r: r["proportions_option"]),
+    ("num_news",   lambda r: r["num_news_agents"]),
+    ("question",   lambda r: r["question"]),
+]:
+    eta_sq_single(fn, lambda r: r["net_consensus_change"], param)
+
+sub("Variance decomposition (η²) — opinion_shift_rate  [report: num_agents=0.346, model=0.076]")
+for param, fn in [
+    ("model",     lambda r: r["model"]),
+    ("num_agents", lambda r: r["num_agents"]),
+    ("ctx",        lambda r: r["add_survey_to_context"]),
+    ("homophily",  lambda r: r["homophily"]),
+    ("graph_type", lambda r: r["graph_type"]),
+    ("prop_opt",   lambda r: r["proportions_option"]),
+    ("question",   lambda r: r["question"]),
+]:
+    eta_sq_single(fn, lambda r: r["mean_opinion_shift_rate"], param)
+
+sub("Variance decomposition (η²) — BERT accuracy  [report: ctx=0.357, model=0.126]")
+for param, fn in [
+    ("model",     lambda r: r["model"]),
+    ("ctx",        lambda r: r["add_survey_to_context"]),
+    ("num_agents", lambda r: r["num_agents"]),
+    ("homophily",  lambda r: r["homophily"]),
+    ("question",   lambda r: r["question"]),
+]:
+    eta_sq_single(fn, lambda r: r["bert_accuracy"], param)
+
+sub("Variance decomposition (η²) — Δ_assortativity  [report: homophily=0.092, num_agents=0.041]")
+for param, fn in [
+    ("homophily",  lambda r: r["homophily"]),
+    ("model",      lambda r: r["model"]),
+    ("graph_type", lambda r: r["graph_type"]),
+    ("num_agents", lambda r: r["num_agents"]),
+    ("ctx",        lambda r: r["add_survey_to_context"]),
+]:
+    eta_sq_single(fn, lambda r: r.get("d_assort"), param)
+
+sub("2x2 interaction contrasts  [report: homophily×powerlaw IC=+0.038, ctx×news IC=−0.006]")
+interaction_2x2("ctx", "homophily", "opinion_shift_rate",
+                lambda r: r["add_survey_to_context"], lambda r: r["homophily"],
+                lambda r: r["mean_opinion_shift_rate"])
+interaction_2x2("ctx", "homophily", "net_consensus_change",
+                lambda r: r["add_survey_to_context"], lambda r: r["homophily"],
+                lambda r: r["net_consensus_change"])
+interaction_2x2("ctx", "powerlaw", "net_consensus_change",
+                lambda r: r["add_survey_to_context"], lambda r: r["graph_type"] == "powerlaw_cluster",
+                lambda r: r["net_consensus_change"])
+interaction_2x2("homophily", "powerlaw", "Δ_assortativity",
+                lambda r: r["homophily"], lambda r: r["graph_type"] == "powerlaw_cluster",
+                lambda r: r.get("d_assort"))
+interaction_2x2("ctx", "news", "bert_accuracy",
+                lambda r: r["add_survey_to_context"], lambda r: r["num_news_agents"] == 1,
+                lambda r: r["bert_accuracy"])
+
+sub("Model x ctx → net_consensus_change  [report: Llama/Qwen diff=+0.128***, Minitaur/Gemma ns]")
+for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
+    vt = [r["net_consensus_change"] for r in runs
+          if r["model"] == model and r["add_survey_to_context"] == True]
+    vf = [r["net_consensus_change"] for r in runs
+          if r["model"] == model and r["add_survey_to_context"] == False]
+    mt, _, nt = msd(vt)
+    mf, _, nf = msd(vf)
+    t, p = welch_t(vt, vf)
+    if mt is not None and mf is not None:
+        print(f"  {model}: ctx=T={mt:.4f}(n={nt}) ctx=F={mf:.4f}(n={nf}) diff={mt-mf:+.4f} "
+              f"t={t:.3f}, p={p:.4f} {sig(p)}")
+
+sub("ctx × num_agents → majority_follow_rate  [report: ns at 64; p<0.001 at 1024 and 4096]")
+for na in [64, 256, 1024, 4096]:
+    vt = [r["mean_majority_follow_rate"] for r in runs
+          if r["num_agents"] == na and r["add_survey_to_context"] == True]
+    vf = [r["mean_majority_follow_rate"] for r in runs
+          if r["num_agents"] == na and r["add_survey_to_context"] == False]
+    mt, _, nt = msd(vt)
+    mf, _, nf = msd(vf)
+    t, p = welch_t(vt, vf)
+    if mt is not None and mf is not None:
+        print(f"  na={na}: ctx=T={mt:.4f}(n={nt}) ctx=F={mf:.4f}(n={nf}) diff={mt-mf:+.4f} "
+              f"p={p:.4f} {sig(p)}")
+
+sub("num_agents × model → OSR: additive check  [report: all r negative, all p<0.001]")
+for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
+    xs = [r["num_agents"] for r in runs if r["model"] == model]
+    ys = [r["mean_opinion_shift_rate"] for r in runs if r["model"] == model]
+    r_val, p_val, n = pearson_r(xs, ys)
+    if r_val is not None:
+        print(f"  {model}: r={r_val:.4f}, p={p_val:.4f} {sig(p_val)}, n={n}")
+
+sub("homophily × graph_type → Δ_assortativity  [report: IC=+0.038, effect concentrated in homophilic]")
+for h in [True, False]:
+    for gt in ["random", "powerlaw_cluster"]:
+        vals = [r["d_assort"] for r in runs
+                if r["homophily"] == h and r["graph_type"] == gt and r.get("d_assort") is not None]
+        m, s, n = msd(vals)
+        if m is not None:
+            print(f"  homophily={h}, {gt}: Δassort={m:.4f}±{s:.4f} n={n}")
+
+
 print("\n" + "=" * 72)
 print("  DONE")
 print("=" * 72)
