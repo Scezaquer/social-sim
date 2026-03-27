@@ -12,6 +12,7 @@ import names
 import json
 import networkx as nx
 import random
+from datasets import load_dataset
 
 
 def _infer_graph_type(random_graph: bool) -> str:
@@ -212,6 +213,10 @@ if __name__ == "__main__":
 
     model_counts = {"Model_"+str(i): 0 for i in range(len(models))}
 
+    if args.base_only:
+        ds = load_dataset("Tianyi-Lab/Personas") # https://arxiv.org/abs/2503.16527
+
+
     attributed_names = set()
     for i in range(NUM_ENTITIES):
         name = get_unique_name(attributed_names)
@@ -220,7 +225,7 @@ if __name__ == "__main__":
         model_counts["Model_"+str(model_id)] += 1
         prompt = ""
         if args.base_only:
-            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Try to keep your messages short."
+            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Speak in a style consistent with the following persona: " + random.choice(ds['train']['meta_persona'])
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
 
