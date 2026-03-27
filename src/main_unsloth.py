@@ -18,9 +18,9 @@ from datasets import load_dataset
 def _infer_graph_type(random_graph: bool) -> str:
     return "random" if random_graph else "powerlaw_cluster"
 
-def get_unique_name(used_names):
+def get_unique_name(used_names, gender=None):
     while True:
-        name = names.get_full_name()
+        name = names.get_full_name(gender=gender)
         if name not in used_names:
             used_names.add(name)
             return name
@@ -219,13 +219,15 @@ if __name__ == "__main__":
 
     attributed_names = set()
     for i in range(NUM_ENTITIES):
-        name = get_unique_name(attributed_names)
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
         prompt = ""
+        name = get_unique_name(attributed_names)
         if args.base_only:
-            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Speak in a style consistent with the following persona: " + random.choice(ds['train']['meta_persona'])
+            persona = random.choice(ds['train']['meta_persona'])
+            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Speak in english, in a style consistent with the following persona: " + persona
+            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
 
