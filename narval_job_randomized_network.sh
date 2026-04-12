@@ -2,7 +2,7 @@
 #SBATCH --account=ctb-liyue
 #SBATCH --job-name=RandomizedNetworkSim
 #SBATCH --array=0-75
-#SBATCH --time=12:00:00
+#SBATCH --time=3:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
 
