@@ -338,3 +338,65 @@ The persona LoRA fine-tuning is not merely a stylistic adjustment — it is the 
 5. **Same-option exposure initialization artifact:** `mean_same_option_exposure_share` is exactly zero at the first survey step (before any interactions), so the start-to-end Δ of +0.69 reflects initialization rather than echo chamber formation. The final value is used for cross-sectional analysis; temporal comparisons for this metric are not interpretable.
 6. **p-values use a normal approximation** (via the error function) rather than a t-distribution CDF. This is accurate for moderate-to-large samples but slightly off for small subgroups.
 7. **`bert_n` confound in the survey-context BERT finding:** `add_survey_to_context=True` runs have fewer eval threads on average (ctx=True: ~136 threads vs ctx=False: ~154), and fewer threads correlates with higher accuracy (r = −0.55, p < 0.001). The direction of the effect is unambiguous, but the magnitude may be partially inflated by this imbalance.
+
+---
+
+## 6. Focused Parameter Analysis: Network Structure and Homophily
+
+This section isolates the two network-level parameters — `graph_type` (random vs powerlaw_cluster) and `homophily` (True vs False) — using dedicated contrasts across all 595 runs.
+
+### 6.1 Main Effects on Core Social Dynamics Are Near-Zero
+
+Across the headline behavioral outcomes, both parameters have small, non-significant effects:
+
+| Metric | graph_type effect (random − powerlaw) | homophily effect (True − False) |
+|---|---|---|
+| net_consensus_change | −0.014 (p = 0.230, d = −0.10) | +0.004 (p = 0.716, d = +0.03) |
+| opinion_shift_rate | +0.013 (p = 0.168, d = +0.11) | −0.003 (p = 0.775, d = −0.02) |
+| majority_follow_rate | −0.008 (p = 0.422, d = −0.07) | −0.004 (p = 0.725, d = −0.03) |
+| NASR | +0.004 (p = 0.212, d = +0.10) | −0.002 (p = 0.601, d = −0.04) |
+
+Interpretation: **network topology and homophily do not materially alter the magnitude of social dynamics** (opinion volatility, herding, or consensus change) in cross-sectional comparisons.
+
+### 6.2 Final Echo-Structure: Small Homophily Signature, No Graph-Type Signature
+
+For final snapshot echo metrics, only one robust effect remains:
+
+- **Final assortativity by homophily:** 0.0059 (True) vs −0.0040 (False), Δ = +0.0099, p = 0.004, d = 0.24
+- **Graph type on final assortativity:** −0.0009 (random) vs +0.0022 (powerlaw), p = 0.375 (ns)
+- **Final local agreement, cross-cutting edges, same-option exposure:** all graph_type and homophily contrasts ns (p >= 0.20)
+
+Interpretation: homophily leaves a **small positive residual** in final opinion assortativity, while graph topology alone has no detectable end-state effect on these cross-sectional echo metrics.
+
+### 6.3 Temporal Dynamics: Homophily Drives Assortativity Collapse; Powerlaw Dampens It
+
+The strongest network-level effects appear in **time-series deltas** (last − first survey step), especially for assortativity:
+
+| Delta metric | graph_type effect (random − powerlaw) | homophily effect (True − False) |
+|---|---|---|
+| Δ assortativity | −0.0165 (p = 0.016, d = −0.20) | **−0.0486 (p < 0.001, d = −0.62)** |
+| Δ local agreement | −0.0152 (p = 0.225, ns) | −0.0163 (p = 0.193, ns) |
+| Δ cross-cutting edges | +0.0133 (p = 0.290, ns) | +0.0179 (p = 0.155, ns) |
+
+Cell means for Δ assortativity show the non-linearity clearly:
+
+| | homophily=False | homophily=True |
+|---|---|---|
+| random | +0.0021 | −0.0671 |
+| powerlaw_cluster | +0.0023 | −0.0286 |
+
+Interaction contrast is **IC = +0.0382**, confirming that powerlaw topology dampens the homophily-driven assortativity collapse, but only when homophily is active.
+
+### 6.4 Within-Model Robustness
+
+Homophily's effect on Δ assortativity is robust within every LoRA-equipped model and absent in `qwen_base`:
+
+| Model | homophily=True | homophily=False | p |
+|---|---|---|---|
+| minitaur | −0.0710 | −0.0054 | < 0.001 *** |
+| llama3.1 | −0.0278 | +0.0087 | < 0.001 *** |
+| qwen | −0.0385 | +0.0020 | 0.0055 ** |
+| gemma | −0.0712 | +0.0111 | < 0.001 *** |
+| qwen_base | −0.0009 | +0.0001 | 0.833 (ns) |
+
+Interpretation: homophily changes **how clustering evolves** over time in socially active models, but does not independently drive stronger consensus erosion or higher volatility.

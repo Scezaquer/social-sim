@@ -15,8 +15,88 @@ import random
 from datasets import load_dataset
 
 
-def _infer_graph_type(random_graph: bool) -> str:
-    return "random" if random_graph else "powerlaw_cluster"
+def _infer_graph_type(graph_model: str) -> str:
+    return graph_model
+
+
+def _resolve_graph_model(args) -> str:
+    # Backward compatibility: --random_graph maps to erdos-renyi unless --graph_model is explicitly set.
+    if args.graph_model is not None:
+        return args.graph_model
+    return "random" if args.random_graph else "powerlaw_cluster"
+
+
+def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
+    if num_nodes <= 0:
+        raise ValueError("Number of graph nodes must be > 0")
+
+    rng = random.Random(seed)
+
+    if graph_model == "random":
+        return nx.erdos_renyi_graph(num_nodes, 0.05, seed=seed)
+
+    if graph_model == "powerlaw_cluster":
+        m = min(14, max(1, num_nodes - 1))
+        return nx.powerlaw_cluster_graph(num_nodes, m, 0.4, seed=seed)
+
+    if graph_model == "barabasi_albert":
+        m = min(4, max(1, num_nodes - 1))
+        return nx.barabasi_albert_graph(num_nodes, m, seed=seed)
+
+    if graph_model == "stochastic_block":
+        # Four near-equal communities with stronger intra-community connectivity.
+        num_blocks = 4 if num_nodes >= 4 else num_nodes
+        base = num_nodes // num_blocks
+        remainder = num_nodes % num_blocks
+        sizes = [base + (1 if i < remainder else 0) for i in range(num_blocks)]
+        probs = [[0.12 if i == j else 0.02 for j in range(num_blocks)] for i in range(num_blocks)]
+        return nx.stochastic_block_model(sizes, probs, seed=seed)
+
+    if graph_model == "forest_fire":
+        # Lightweight undirected forest-fire style graph with ambassador sampling.
+        if num_nodes == 1:
+            return nx.empty_graph(1)
+
+        graph = nx.Graph()
+        graph.add_node(0)
+        forward_burn_prob = 0.35
+        max_burn_visits = 12
+
+        for new_node in range(1, num_nodes):
+            graph.add_node(new_node)
+            ambassador = rng.randrange(0, new_node)
+            graph.add_edge(new_node, ambassador)
+
+            queue = [ambassador]
+            visited = {ambassador}
+            burn_visits = 0
+
+            while queue and burn_visits < max_burn_visits:
+                current = queue.pop(0)
+                burn_visits += 1
+                neighbors = list(graph.neighbors(current))
+                rng.shuffle(neighbors)
+
+                for neighbor in neighbors:
+                    if neighbor == new_node:
+                        continue
+                    if rng.random() < forward_burn_prob:
+                        graph.add_edge(new_node, neighbor)
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            queue.append(neighbor)
+
+        return graph
+
+    if graph_model == "fully_connected":
+        return nx.complete_graph(num_nodes)
+
+    if graph_model == "cycle":
+        if num_nodes < 3:
+            raise ValueError("Cycle graph requires at least 3 nodes.")
+        return nx.cycle_graph(num_nodes)
+
+    raise ValueError(f"Unknown graph model: {graph_model}")
 
 def get_unique_name(used_names, gender=None):
     while True:
@@ -47,6 +127,24 @@ if __name__ == "__main__":
     parser.add_argument("--loras_path", type=str, help="Path to the LoRA models directory")
     parser.add_argument("--duration", type=float, default=14400, help="Duration of the job in seconds")
     parser.add_argument("--random_graph", action='store_true', help="Use a random graph instead of powerlaw cluster graph")
+    parser.add_argument(
+        "--graph_model",
+        type=str,
+        choices=[
+            "powerlaw_cluster",
+            "random",
+            "barabasi_albert",
+            "stochastic_block",
+            "forest_fire",
+            "fully_connected",
+            "cycle",
+        ],
+        default=None,
+        help=(
+            "Graph model to initialize the network. If omitted, defaults to powerlaw_cluster "
+            "or random when --random_graph is set."
+        ),
+    )
     parser.add_argument("--homophily", action='store_true', help="Assign users to graph nodes with homophily based on initial survey opinions")
     parser.add_argument("--survey_output", type=str, default="survey_results.json", help="Path to save survey results")
     parser.add_argument("--array_id", type=int, default=0, help="Array index for job differentiation")
@@ -278,10 +376,13 @@ if __name__ == "__main__":
         'options': options
     }
 
-    if args.random_graph:
-        G = nx.erdos_renyi_graph(NUM_ENTITIES + args.num_news_agents, 0.05, seed=args.array_id)
-    else:
-        G = nx.powerlaw_cluster_graph(NUM_ENTITIES + args.num_news_agents, 14, 0.4, seed=args.array_id)
+    graph_model = _resolve_graph_model(args)
+    G = _build_graph(
+        graph_model=graph_model,
+        num_nodes=NUM_ENTITIES + args.num_news_agents,
+        seed=args.array_id,
+    )
+    print(f"Using graph model: {graph_model}")
     
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
     sim_engine = SimEngine(
@@ -321,7 +422,7 @@ if __name__ == "__main__":
         "lora_indices": loaded_lora_indices,
         "num_agents": args.num_agents,
         "num_news_agents": args.num_news_agents,
-        "graph_type": _infer_graph_type(args.random_graph),
+        "graph_type": _infer_graph_type(graph_model),
         "homophily": args.homophily,
         "question_number": args.question_number,
         "tweet_files": args.tweet_files,

@@ -1135,6 +1135,133 @@ for model in ["qwen", "qwen_base"]:
           f"t={t:.3f}, p={p:.4f} {sig(p)}")
 
 
+# ---------------------------------------------------------------------------
+# Focused section: Network structure and homophily impact
+# ---------------------------------------------------------------------------
+
+section("FOCUSED CHECK — NETWORK STRUCTURE & HOMOPHILY IMPACT")
+
+
+def compare_groups(metric_key: str, metric_label: str,
+                   group_key: str, group_a, group_b,
+                   label_a: str, label_b: str) -> None:
+    """Print 2-group comparison with means, Welch t, and Cohen's d."""
+    va = [r[metric_key] for r in runs if r[group_key] == group_a and r.get(metric_key) is not None]
+    vb = [r[metric_key] for r in runs if r[group_key] == group_b and r.get(metric_key) is not None]
+    ma, sa, na = msd(va)
+    mb, sb, nb = msd(vb)
+    t, p = welch_t(va, vb)
+    d = cohens_d(va, vb)
+    print(f"  {metric_label}: {label_a}={ma:.4f}±{sa:.4f}(n={na}) vs {label_b}={mb:.4f}±{sb:.4f}(n={nb})")
+    print(f"    Δ={ma-mb:+.4f}, t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+
+
+sub("Main effects on social-dynamics metrics")
+for metric_key, metric_label in [
+    ("net_consensus_change", "net_consensus_change"),
+    ("mean_opinion_shift_rate", "opinion_shift_rate"),
+    ("mean_majority_follow_rate", "majority_follow_rate"),
+    ("mean_nasr", "NASR"),
+]:
+    compare_groups(metric_key, metric_label, "graph_type", "random", "powerlaw_cluster", "random", "powerlaw")
+    compare_groups(metric_key, metric_label, "homophily", True, False, "homophily=True", "homophily=False")
+
+sub("Main effects on final echo-structure metrics")
+for metric_key, metric_label in [
+    ("echo_assortativity", "final_assortativity"),
+    ("echo_local_agreement", "final_local_agreement"),
+    ("echo_cross_cutting", "final_cross_cutting_edges"),
+    ("echo_same_option_exposure", "final_same_option_exposure"),
+]:
+    compare_groups(metric_key, metric_label, "graph_type", "random", "powerlaw_cluster", "random", "powerlaw")
+    compare_groups(metric_key, metric_label, "homophily", True, False, "homophily=True", "homophily=False")
+
+sub("Temporal effects (last-first by_survey deltas)")
+for raw_key, label in [
+    ("network_assortativity", "Δassortativity"),
+    ("mean_local_agreement", "Δlocal_agreement"),
+    ("cross_cutting_edge_fraction", "Δcross_cutting"),
+]:
+    for factor_key, a, b, la, lb in [
+        ("graph_type", "random", "powerlaw_cluster", "random", "powerlaw"),
+        ("homophily", True, False, "homophily=True", "homophily=False"),
+    ]:
+        va, vb = [], []
+        for r in runs:
+            bs = r.get("by_survey") or []
+            if not bs:
+                continue
+            v0 = bs[0].get(raw_key)
+            v1 = bs[-1].get(raw_key)
+            if v0 is None or v1 is None:
+                continue
+            delta = v1 - v0
+            if r.get(factor_key) == a:
+                va.append(delta)
+            elif r.get(factor_key) == b:
+                vb.append(delta)
+        ma, sa, na = msd(va)
+        mb, sb, nb = msd(vb)
+        t, p = welch_t(va, vb)
+        d = cohens_d(va, vb)
+        print(f"  {label}: {la}={ma:.4f}±{sa:.4f}(n={na}) vs {lb}={mb:.4f}±{sb:.4f}(n={nb})")
+        print(f"    Δ={ma-mb:+.4f}, t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+
+sub("Interaction focus: homophily × graph_type on Δassortativity")
+cells = {}
+for h in [False, True]:
+    for gt in ["random", "powerlaw_cluster"]:
+        vals = []
+        for r in runs:
+            if r.get("homophily") != h or r.get("graph_type") != gt:
+                continue
+            bs = r.get("by_survey") or []
+            if not bs:
+                continue
+            v0 = bs[0].get("network_assortativity")
+            v1 = bs[-1].get("network_assortativity")
+            if v0 is not None and v1 is not None:
+                vals.append(v1 - v0)
+        cells[(h, gt)] = vals
+
+for h in [False, True]:
+    for gt in ["random", "powerlaw_cluster"]:
+        m, s, n = msd(cells[(h, gt)])
+        print(f"  homophily={h}, graph={gt}: Δassort={m:.4f}±{s:.4f} (n={n})")
+
+# IC = mean_11 - mean_10 - mean_01 + mean_00
+m00 = statistics.mean(cells[(False, "random")])
+m01 = statistics.mean(cells[(False, "powerlaw_cluster")])
+m10 = statistics.mean(cells[(True, "random")])
+m11 = statistics.mean(cells[(True, "powerlaw_cluster")])
+ic = m11 - m10 - m01 + m00
+print(f"  interaction_contrast(IC)={ic:+.4f}")
+
+sub("Within-model homophily impact on Δassortativity")
+for model in ["minitaur", "llama3.1", "qwen", "qwen_base", "gemma"]:
+    vh, vf = [], []
+    for r in runs:
+        if r.get("model") != model:
+            continue
+        bs = r.get("by_survey") or []
+        if not bs:
+            continue
+        v0 = bs[0].get("network_assortativity")
+        v1 = bs[-1].get("network_assortativity")
+        if v0 is None or v1 is None:
+            continue
+        if r.get("homophily") is True:
+            vh.append(v1 - v0)
+        else:
+            vf.append(v1 - v0)
+    mh, sh, nh = msd(vh)
+    mf, sf, nf = msd(vf)
+    t, p = welch_t(vh, vf)
+    d = cohens_d(vh, vf)
+    print(f"  {model}: hom=T {mh:.4f}±{sh:.4f}(n={nh}) vs hom=F {mf:.4f}±{sf:.4f}(n={nf})")
+    print(f"    Δ={mh-mf:+.4f}, t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+
+
 print("\n" + "=" * 72)
 print("  DONE")
 print("=" * 72)
