@@ -1,10 +1,7 @@
-from concordia.environment import engine as engine_lib
-from concordia.typing import entity as entity_lib
 from collections.abc import Callable, Mapping, Sequence
-from concordia.typing.entity import DEFAULT_ACTION_SPEC
 from typing import Any
-from concordia_components.type_aliases import Thread
-from concordia_components.entities import NewsSource, User
+from simulation_components.type_aliases import Thread
+from simulation_components.entities import NewsSource, User, Entity
 import numpy as np
 from tqdm import tqdm
 import networkx as nx
@@ -12,7 +9,7 @@ import time
 import re
 from collections import Counter
 
-class SimEngine(engine_lib.Engine):
+class SimEngine:
     """Engine interface."""
 
     def __init__(self,
@@ -421,7 +418,7 @@ class SimEngine(engine_lib.Engine):
         graph: Any,
         remaining_nodes: list[int],
         remaining_indices: list[int],
-        entities: Sequence[entity_lib.Entity],
+        entities: Sequence[Entity],
     ) -> dict[int, int]:
         if not remaining_nodes or not remaining_indices:
             return {}
@@ -463,7 +460,7 @@ class SimEngine(engine_lib.Engine):
 
         return node_to_entity_idx
 
-    def _compute_homophily_metrics(self, entities: Sequence[entity_lib.Entity]) -> dict[str, float]:
+    def _compute_homophily_metrics(self, entities: Sequence[Entity]) -> dict[str, float]:
         model_scores = self._compute_model_opinion_scores()
 
         user_indices = [i for i, entity in enumerate(entities) if isinstance(entity, User)]
@@ -556,7 +553,7 @@ class SimEngine(engine_lib.Engine):
         self._visualizer_data["behavioral_metrics"] = self._behavioral_metrics
         return self._visualizer_data
 
-    def _initialize_social_context(self, entities: Sequence[entity_lib.Entity]):
+    def _initialize_social_context(self, entities: Sequence[Entity]):
         n_entities = len(entities)
         entity_names = [e.name for e in entities]
         self._name_to_idx = {name: i for i, name in enumerate(entity_names)}
@@ -679,8 +676,8 @@ class SimEngine(engine_lib.Engine):
 
     def make_observation(
         self,
-        game_master: entity_lib.Entity,
-        entity: entity_lib.Entity,
+        game_master: Entity,
+        entity: Entity,
         make_new_thread: bool = True,
         step: int = 0
     ) -> Thread:
@@ -793,9 +790,9 @@ class SimEngine(engine_lib.Engine):
 
     def next_acting(
         self,
-        game_master: entity_lib.Entity,
-        entities: Sequence[entity_lib.Entity],
-    ) -> tuple[entity_lib.Entity, entity_lib.ActionSpec]:
+        game_master: Entity,
+        entities: Sequence[Entity],
+    ) -> Entity:
         """Return the next entity or entities to act."""
         
         if self._entity_activity_probs is None:
@@ -809,7 +806,7 @@ class SimEngine(engine_lib.Engine):
             if isinstance(acting_entity, NewsSource) and not acting_entity.has_news():
                 continue
             
-            return acting_entity, DEFAULT_ACTION_SPEC
+            return acting_entity
             
         # Fallback: pick a non-NewsSource entity if possible
         non_news_indices = [i for i, e in enumerate(self._acting_entities) if not isinstance(e, NewsSource)]
@@ -818,13 +815,13 @@ class SimEngine(engine_lib.Engine):
              if probs.sum() > 0:
                  probs /= probs.sum()
                  idx = np.random.choice(len(non_news_indices), p=probs)
-                 return self._acting_entities[non_news_indices[idx]], DEFAULT_ACTION_SPEC
+                 return self._acting_entities[non_news_indices[idx]]
         
-        return self._acting_entities[0], DEFAULT_ACTION_SPEC
+        return self._acting_entities[0]
 
     def resolve(
         self,
-        game_master: entity_lib.Entity,
+        game_master: Entity,
         event: str,
     ) -> None:
         """Resolve the event."""
@@ -832,23 +829,23 @@ class SimEngine(engine_lib.Engine):
 
     def terminate(
         self,
-        game_master: entity_lib.Entity,
+        game_master: Entity,
     ) -> bool:
         """Decide if the episode should terminate or continue."""
         return False
 
     def next_game_master(
         self,
-        game_master: entity_lib.Entity,
-        game_masters: Sequence[entity_lib.Entity],
-    ) -> entity_lib.Entity:
+        game_master: Entity,
+        game_masters: Sequence[Entity],
+    ) -> Entity:
         """Return the game master that will be responsible for the next step."""
         return game_master
 
     def run_loop(
         self,
-        game_masters: Sequence[entity_lib.Entity],
-        entities: Sequence[entity_lib.Entity],
+        game_masters: Sequence[Entity],
+        entities: Sequence[Entity],
         premise: str,
         max_steps: int,
         verbose: bool,
@@ -914,12 +911,12 @@ class SimEngine(engine_lib.Engine):
 
                 # 10 observations for every action
                 for i in range(10):
-                    acting_entity, action_spec = self.next_acting(
+                    acting_entity = self.next_acting(
                         game_master, entities)
                     
                     make_new_thread = ( i == 9 )  # Only create new thread on the last observation
                     observation = self.make_observation(game_master, acting_entity, make_new_thread, step=steps)
-                action = acting_entity.act(action_spec)
+                action = acting_entity.act()
                 observation.content.append({'role': acting_entity.name, 'content': action, 'step': steps})
                 
                 if isinstance(acting_entity, NewsSource):

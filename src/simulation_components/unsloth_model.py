@@ -4,10 +4,6 @@ from collections.abc import Collection, Sequence
 from typing import Any, Mapping
 import torch
 
-from concordia.language_model import language_model
-from concordia.utils.deprecated import measurements as measurements_lib
-from typing_extensions import override
-
 try:
     from unsloth import FastLanguageModel
     UNSLOTH_AVAILABLE = True
@@ -19,6 +15,13 @@ except ImportError as e:
     UNSLOTH_IMPORT_ERROR = e
 
 from transformers import StoppingCriteria, StoppingCriteriaList
+
+DEFAULT_TEMPERATURE = 1.0
+DEFAULT_TOP_P = 0.95
+DEFAULT_TOP_K = 64
+DEFAULT_TERMINATORS = ()
+DEFAULT_TIMEOUT_SECONDS = 60
+DEFAULT_MAX_TOKENS = 5000
 
 class StopOnString(StoppingCriteria):
     def __init__(self, tokenizer, stop_string, prompt_len):
@@ -36,7 +39,7 @@ class StopOnString(StoppingCriteria):
         decoded_gen = self.tokenizer.decode(generated_tokens[-15:])
         return self.stop_string in decoded_gen
 
-class UnslothLanguageModel(language_model.LanguageModel):
+class UnslothLanguageModel:
   """Language model wrapper for Unsloth local inference."""
 
   def __init__(
@@ -45,8 +48,6 @@ class UnslothLanguageModel(language_model.LanguageModel):
       *,
       max_seq_length: int = 4096,
       load_in_4bit: bool = False,
-      measurements: measurements_lib.Measurements | None = None,
-      channel: str = language_model.DEFAULT_STATS_CHANNEL,
       **kwargs: Any,
   ):
     if not UNSLOTH_AVAILABLE:
@@ -60,8 +61,6 @@ class UnslothLanguageModel(language_model.LanguageModel):
         )
 
     self._model_name = model_name
-    self._measurements = measurements
-    self._channel = channel
     self._nbr_lora_adapters = 0
     
     # Initialize Unsloth model
@@ -74,7 +73,6 @@ class UnslothLanguageModel(language_model.LanguageModel):
     )
     # Ensure the model is a PeftModel to support multiple adapters correctly
     if not hasattr(self.model, "peft_config"):
-        from peft import LoraConfig
         print("Converting base model to PeftModel for multi-adapter support.")
         self.model = FastLanguageModel.get_peft_model(
             self.model,
@@ -107,18 +105,17 @@ class UnslothLanguageModel(language_model.LanguageModel):
     
   def apply_chat_template(self, messages: list[dict[str, str]], add_generation_prompt: bool = True) -> str:
       return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=add_generation_prompt)
-      
-  @override
+
   def sample_text(
       self,
       prompt: str,
       *,
-      max_tokens: int = language_model.DEFAULT_MAX_TOKENS,
-      terminators: Collection[str] = language_model.DEFAULT_TERMINATORS,
-      temperature: float = language_model.DEFAULT_TEMPERATURE,
-      top_p: float = language_model.DEFAULT_TOP_P,
-      top_k: int = language_model.DEFAULT_TOP_K,
-      timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
+      max_tokens: int = DEFAULT_MAX_TOKENS,
+      terminators: Collection[str] = DEFAULT_TERMINATORS,
+      temperature: float = DEFAULT_TEMPERATURE,
+      top_p: float = DEFAULT_TOP_P,
+      top_k: int = DEFAULT_TOP_K,
+      timeout: float = DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
       adapter_name: str | None = None,
   ) -> str:
@@ -185,16 +182,9 @@ class UnslothLanguageModel(language_model.LanguageModel):
         for term in terminators:
             if term in generated_text:
                 generated_text = generated_text.split(term)[0]
-                
-    if self._measurements is not None:
-      self._measurements.publish_datum(
-          self._channel,
-          {'raw_text_length': len(generated_text)},
-      )
 
     return generated_text
 
-  @override
   def sample_choice(
       self,
       prompt: str,
@@ -268,7 +258,7 @@ class UnslothLanguageModel(language_model.LanguageModel):
     return best_idx, responses[best_idx], debug_info
 
 
-class UnslothLora(language_model.LanguageModel):
+class UnslothLora:
   """Language model wrapper for Unsloth local inference with LoRA."""
 
   def __init__(
@@ -292,17 +282,16 @@ class UnslothLora(language_model.LanguageModel):
   def apply_chat_template(self, messages: list[dict[str, str]], add_generation_prompt: bool = True) -> str:
       return self._base_model.apply_chat_template(messages, add_generation_prompt=add_generation_prompt)
 
-  @override
   def sample_text(
       self,
       prompt: str,
       *,
-      max_tokens: int = language_model.DEFAULT_MAX_TOKENS,
-      terminators: Collection[str] = language_model.DEFAULT_TERMINATORS,
-      temperature: float = language_model.DEFAULT_TEMPERATURE,
-      top_p: float = language_model.DEFAULT_TOP_P,
-      top_k: int = language_model.DEFAULT_TOP_K,
-      timeout: float = language_model.DEFAULT_TIMEOUT_SECONDS,
+      max_tokens: int = DEFAULT_MAX_TOKENS,
+      terminators: Collection[str] = DEFAULT_TERMINATORS,
+      temperature: float = DEFAULT_TEMPERATURE,
+      top_p: float = DEFAULT_TOP_P,
+      top_k: int = DEFAULT_TOP_K,
+      timeout: float = DEFAULT_TIMEOUT_SECONDS,
       seed: int | None = None,
   ) -> str:
     return self._base_model.sample_text(
@@ -317,7 +306,6 @@ class UnslothLora(language_model.LanguageModel):
         adapter_name=self._adapter_name,
     )
 
-  @override
   def sample_choice(
       self,
       prompt: str,

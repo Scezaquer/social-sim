@@ -1,14 +1,13 @@
 import functools
-
 from typing import Any
 from collections.abc import Sequence
-from concordia.typing import entity
-from typing_extensions import override
-from concordia.typing.entity import ActionSpec, DEFAULT_ACTION_SPEC
-from concordia.language_model.language_model import LanguageModel
-from concordia_components.type_aliases import Thread
+from simulation_components.type_aliases import Thread
+from simulation_components.unsloth_model import UnslothLanguageModel
 
-class NewsSource(entity.EntityWithLogging):
+class Entity:
+    pass
+
+class NewsSource(Entity):
     """A news source that posts messages from a feed."""
 
     def __init__(self,
@@ -21,14 +20,12 @@ class NewsSource(entity.EntityWithLogging):
         self._current_index = 0
         self._logs = logs if logs is not None else {}
 
-    @override
     @functools.cached_property
     def name(self) -> str:
         """The name of the entity."""
         return self._name
 
-    @override
-    def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
+    def act(self) -> str:
         """Returns the next news item."""
         if self._current_index >= len(self._news_feed):
             return ""
@@ -39,12 +36,10 @@ class NewsSource(entity.EntityWithLogging):
         news = item.get('message', '')
         return news
 
-    @override
     def observe(self, thread: Thread) -> None:
         """News source ignores observations."""
         pass
 
-    @override
     def get_last_log(self) -> dict[str, Any]:
         """Returns debugging information."""
         return self._logs
@@ -53,7 +48,7 @@ class NewsSource(entity.EntityWithLogging):
         """Check if there are more news items."""
         return self._current_index < len(self._news_feed)
 
-class User(entity.EntityWithLogging):
+class User(Entity):
     """Base class for users.
 
     Entities are the basic building blocks of a game. They are the entities
@@ -69,7 +64,7 @@ class User(entity.EntityWithLogging):
     """
 
     def __init__(self,
-                 model: LanguageModel,
+                 model: UnslothLanguageModel,
                  name: str,
                  model_id: int = 0,
                  context: list[dict[str, str]] = None,
@@ -93,7 +88,6 @@ class User(entity.EntityWithLogging):
         self._add_survey_to_context = add_survey_to_context
         self._system_prompt = system_prompt
 
-    @override
     @functools.cached_property
     def name(self) -> str:
         """The name of the entity."""
@@ -103,7 +97,7 @@ class User(entity.EntityWithLogging):
     def model_id(self) -> int:
         return self._model_id
 
-    def get_prompt(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
+    def get_prompt(self) -> str:
         """Constructs the prompt but does not sample."""
         if len(self._context) > self._max_messages:
             self._context = self._context[-self._max_messages:]
@@ -132,21 +126,18 @@ class User(entity.EntityWithLogging):
         self._context.append({"role": "assistant", "content": response})
         return response
 
-    @override
-    def act(self, action_spec: ActionSpec = DEFAULT_ACTION_SPEC) -> str:
-        """Returns the entity's intended action given the action spec."""
-        prompt = self.get_prompt(action_spec)
+    def act(self) -> str:
+        """Returns the entity's intended action."""
+        prompt = self.get_prompt()
         response = self._model.sample_text(prompt=prompt, max_tokens=200)
         print(f"Entity {self._name} generated response: {response}")
         return self.complete_action(response)
 
-    @override
     def observe(self, thread: Thread) -> None:
         """Informs the Entity of an observation."""
         self._context.append({"role": "system", "content": "### New Thread ###\nWrite a post for a new conversation thread."})
         self._context.extend(thread.content)
 
-    @override
     def get_last_log(self) -> dict[str, Any]:
         """Returns debugging information in the form of a dictionary."""
         return self._logs

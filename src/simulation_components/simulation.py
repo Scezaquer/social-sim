@@ -1,39 +1,25 @@
 
 from collections.abc import Callable, Mapping
 from typing import Any
-
-from concordia.language_model import language_model
-from concordia.typing import entity as entity_lib
-from concordia.typing import prefab as prefab_lib
-from concordia.typing import simulation as simulation_lib
-from concordia.environment import engine as engine_lib
-from concordia.prefabs.entity import minimal
-from concordia.language_model.no_language_model import NoLanguageModel
 import numpy as np
 import copy
-from concordia_components.engine import SimEngine
+from simulation_components.engine import SimEngine
+from simulation_components.unsloth_model import UnslothLanguageModel
+from simulation_components.entities import Entity
 
-Config = prefab_lib.Config
-Role = prefab_lib.Role
-
-class SocialMediaSim(simulation_lib.Simulation):
+class SocialMediaSim:
     def __init__(
       self,
-      config: Config,
-      model: language_model.LanguageModel,
-      embedder: Callable[[str], np.ndarray],
-      entities: list[entity_lib.Entity] = None,
-      engine: engine_lib.Engine = SimEngine(),
+      model: UnslothLanguageModel,
+      entities: list[Entity] = None,
+      engine: SimEngine = SimEngine(),
     ):
         """Initialize the simulation object."""
-        self._config = config
         self._model = model
-        self._embedder = embedder
         self._engine = engine
         self.game_masters = [None]
         self.entities = entities if entities is not None else []
         self._raw_log = []
-        self._entity_to_prefab_config: dict[str, prefab_lib.InstanceConfig] = {}
         self._checkpoints_path = None
         self._checkpoint_counter = 0
 
@@ -41,7 +27,7 @@ class SocialMediaSim(simulation_lib.Simulation):
         """Get the raw log of the simulation."""
         return copy.deepcopy(self._raw_log)
 
-    def get_game_masters(self) -> list[entity_lib.Entity]:
+    def get_game_masters(self) -> list[Entity]:
         """Get the game masters.
 
         The function returns a copy of the game masters list to avoid modifying the
@@ -53,7 +39,7 @@ class SocialMediaSim(simulation_lib.Simulation):
         """
         return copy.copy(self.game_masters)
 
-    def get_entities(self) -> list[entity_lib.Entity]:
+    def get_entities(self) -> list[Entity]:
         """Get the entities.
 
         The function returns a copy of the entities list to avoid modifying the
@@ -65,11 +51,11 @@ class SocialMediaSim(simulation_lib.Simulation):
         """
         return copy.copy(self.entities)
 
-    def add_game_master(self, game_master: entity_lib.Entity):
+    def add_game_master(self, game_master: Entity):
         """Add a game master to the simulation."""
         raise NotImplementedError
 
-    def add_entity(self, entity: entity_lib.Entity):
+    def add_entity(self, entity: Entity):
         """Add an entity to the simulation."""
         raise NotImplementedError
 

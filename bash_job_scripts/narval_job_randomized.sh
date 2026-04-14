@@ -7,10 +7,10 @@
 #SBATCH --gpus-per-node=a100:1
 
 # source ../concordia/ENV-concordia/bin/activate
-# python src/main_unsloth.py --base_model "Qwen/Qwen2.5-7B-Instruct" --loras_path "$SCRATCH/Qwen" --lora_name_template "Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
-# python src/main_unsloth.py --base_model "marcelbinz/Llama-3.1-Minitaur-8B" --loras_path "$SCRATCH/marcelbinz" --lora_name_template "Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}"
-# python src/main_unsloth.py --base_model "meta-llama/Llama-3.1-8B" --loras_path "$SCRATCH/meta-llama" --lora_name_template "Llama-3.1-8B-lora-finetuned-unsloth-{i}"
-# python src/main_unsloth.py --base_model "google/gemma-3-4b-pt" --loras_path "$SCRATCH/google" --lora_name_template "gemma-3-4b-pt-lora-finetuned-unsloth-{i}"
+# python src/main.py --base_model "Qwen/Qwen2.5-7B-Instruct" --loras_path "$SCRATCH/Qwen" --lora_name_template "Qwen2.5-7B-Instruct-lora-finetuned-{i}-no-focal"
+# python src/main.py --base_model "marcelbinz/Llama-3.1-Minitaur-8B" --loras_path "$SCRATCH/marcelbinz" --lora_name_template "Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}"
+# python src/main.py --base_model "meta-llama/Llama-3.1-8B" --loras_path "$SCRATCH/meta-llama" --lora_name_template "Llama-3.1-8B-lora-finetuned-unsloth-{i}"
+# python src/main.py --base_model "google/gemma-3-4b-pt" --loras_path "$SCRATCH/google" --lora_name_template "gemma-3-4b-pt-lora-finetuned-unsloth-{i}"
 
 set -euo pipefail
 
@@ -83,12 +83,12 @@ module load python/3.11
 module load scipy-stack
 source "${NARVAL_VENV_PATH:-../concordia/ENV-concordia/bin/activate}"
 
-if [[ -n "${SLURM_SUBMIT_DIR:-}" ]] && [[ -f "$SLURM_SUBMIT_DIR/src/main_unsloth.py" ]]; then
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]] && [[ -f "$SLURM_SUBMIT_DIR/src/main.py" ]]; then
     REPO_ROOT="$SLURM_SUBMIT_DIR"
-elif [[ -f "$PWD/src/main_unsloth.py" ]]; then
+elif [[ -f "$PWD/src/main.py" ]]; then
     REPO_ROOT="$PWD"
 else
-    echo "Could not locate repository root with src/main_unsloth.py" >&2
+    echo "Could not locate repository root with src/main.py" >&2
     exit 1
 fi
 
@@ -330,7 +330,7 @@ if [[ ! -f "$RESOLVED_BASE_MODEL/config.json" ]]; then
 fi
 
 CMD=(
-    python -u "$LOCAL_REPO/src/main_unsloth.py"
+    python -u "$LOCAL_REPO/src/main.py"
     --survey_output "$LOCAL_SURVEY_OUTPUT"
     --array_id "${SLURM_ARRAY_TASK_ID}"
     --job_id "${SLURM_JOB_ID}"
