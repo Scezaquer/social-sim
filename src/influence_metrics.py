@@ -610,7 +610,7 @@ def default_output_path(input_path: str) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compute semantic influence metrics from visualizer JSON.")
-    parser.add_argument("input", help="Path to the simulator visualizer JSON file.")
+    parser.add_argument("inputs", nargs="+", help="Path(s) to simulator visualizer JSON file(s).")
     parser.add_argument("--output", default=None, help="Path to the enriched output JSON file.")
     parser.add_argument("--beta", type=float, default=0.05, help="Temporal decay parameter for Hawkes-style influence.")
     parser.add_argument("--edge-threshold", type=float, default=0.05, help="Minimum influence probability to keep in filtered cascade views.")
@@ -622,22 +622,34 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
-    output_path = args.output or default_output_path(args.input)
+def resolve_output_path(input_path: str, *, output_arg: str | None, multiple_inputs: bool) -> str:
+    if output_arg is None:
+        return default_output_path(input_path)
 
-    print(f"Loading simulator data from {args.input}")
-    sim_data = load_simulation_data(args.input)
+    if multiple_inputs:
+        raise ValueError("--output supports only a single input file. Omit --output for batch mode.")
+
+    return output_arg
+
+
+def process_file(
+    input_path: str,
+    *,
+    output_path: str,
+    embed_fn: Callable[[list[str]], np.ndarray],
+    beta: float,
+    edge_threshold: float,
+    model_name: str,
+    window_size: int,
+    include_embeddings: bool,
+) -> None:
+    print(f"Loading simulator data from {input_path}")
+    sim_data = load_simulation_data(input_path)
     messages = extract_messages(sim_data)
     print(f"Extracted {len(messages)} messages from {len(sim_data.get('threads', []))} threads.")
 
-    print(f"Embedding messages with {args.model_name}")
-    compute_embeddings(
-        messages,
-        model_name=args.model_name,
-        batch_size=args.batch_size,
-        device=args.device,
-    )
+    print(f"Embedding messages with {model_name}")
+    compute_embeddings(messages, embed=embed_fn)
 
     print("Reconstructing exposure histories")
     exposure_steps_by_user, _ = build_exposure_index(sim_data, messages)
@@ -645,8 +657,8 @@ def main() -> None:
     print("Computing semantic influence graph")
     influence_graph = compute_influence_graph(
         messages,
-        beta=args.beta,
-        edge_threshold=args.edge_threshold,
+        beta=beta,
+        edge_threshold=edge_threshold,
     )
 
     print("Computing impact scores")
@@ -656,14 +668,14 @@ def main() -> None:
     cascades = compute_cascades(
         messages,
         influence_graph,
-        edge_threshold=args.edge_threshold,
+        edge_threshold=edge_threshold,
     )
 
     print("Computing discourse drift")
     drift_metrics = compute_drift(
         messages,
         exposure_steps_by_user,
-        window_size=args.window_size,
+        window_size=window_size,
     )
 
     output_payload = build_output_payload(
@@ -673,17 +685,42 @@ def main() -> None:
         impact_scores,
         cascades,
         drift_metrics,
-        beta=args.beta,
-        edge_threshold=args.edge_threshold,
-        model_name=args.model_name,
-        window_size=args.window_size,
-        include_embeddings=not args.omit_embeddings,
+        beta=beta,
+        edge_threshold=edge_threshold,
+        model_name=model_name,
+        window_size=window_size,
+        include_embeddings=include_embeddings,
     )
 
     with open(output_path, "w", encoding="utf-8") as handle:
         json.dump(output_payload, handle, indent=2)
 
     print(f"Wrote enriched influence analysis to {output_path}")
+
+
+def main() -> None:
+    args = parse_args()
+    multiple_inputs = len(args.inputs) > 1
+
+    print(f"Initializing embedder {args.model_name}")
+    embedder = BertweetEmbedder(
+        model_name=args.model_name,
+        batch_size=args.batch_size,
+        device=args.device,
+    )
+
+    for input_path in args.inputs:
+        output_path = resolve_output_path(input_path, output_arg=args.output, multiple_inputs=multiple_inputs)
+        process_file(
+            input_path,
+            output_path=output_path,
+            embed_fn=embedder,
+            beta=args.beta,
+            edge_threshold=args.edge_threshold,
+            model_name=args.model_name,
+            window_size=args.window_size,
+            include_embeddings=not args.omit_embeddings,
+        )
 
 
 if __name__ == "__main__":
