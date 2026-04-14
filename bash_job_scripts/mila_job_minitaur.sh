@@ -12,12 +12,12 @@ source $HOME/ENV/bin/activate
 export HF_HUB_CACHE=$SCRATCH/HF-cache
 export UNSLOTH_CACHE_DIR=$SLURM_TMPDIR/unsloth-cache
 
-python -u src/main_unsloth.py \
+python -u src/main.py \
     --survey_output survey_minitaur_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json  \
     --array_id ${SLURM_ARRAY_TASK_ID} \
     --job_id ${SLURM_JOB_ID} \
     --homophily \
     --question_number 28 \
-    --tweet_files ai_copyright_tweets.json \
+    --tweet_files news_tweets/ai_copyright_tweets.json \
     --base_model marcelbinz/Llama-3.1-Minitaur-8B \
     --visualizer_output visualizer_minitaur_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json
