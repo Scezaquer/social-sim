@@ -210,7 +210,9 @@ class UnslothLanguageModel:
             # Use autocast to ensure operations are performed in bfloat16
             # This is specifically needed for models like Gemma-3 where the unsloth compiler 
             # might have internal float32/bfloat16 mismatches in the forward pass.
+            tmp = self.tokenizer("test", return_tensors="pt").to("cuda")
             with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+                tmp = self.model(**tmp)
                 outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
             

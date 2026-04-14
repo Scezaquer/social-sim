@@ -1,6 +1,12 @@
 import time
 import datetime
 import argparse
+import logging
+
+# Filter out the specific transformers deprecation warning that causes a logging TypeError
+# in some versions of Transformers/Python due to a mismatch in argument formatting.
+logging.getLogger("transformers.modeling_attn_mask_utils").setLevel(logging.ERROR)
+
 from simulation_components.unsloth_model import UnslothLanguageModel, UnslothLora
 from simulation_components.simulation import SocialMediaSim
 from simulation_components.entities import User, NewsSource
@@ -236,7 +242,7 @@ if __name__ == "__main__":
 
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
-        load_in_4bit=False,
+        load_in_4bit=True,
         local_files_only=True,
     )
 
