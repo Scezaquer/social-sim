@@ -9,7 +9,7 @@ logging.getLogger("transformers.modeling_attn_mask_utils").setLevel(logging.ERRO
 
 from simulation_components.unsloth_model import UnslothLanguageModel, UnslothLora
 from simulation_components.simulation import SocialMediaSim
-from simulation_components.entities import User, NewsSource
+from simulation_components.entities import User, AdversarialUser, NewsSource
 from simulation_components.engine import SimEngine
 import numpy as np
 import torch
@@ -203,10 +203,22 @@ if __name__ == "__main__":
         help="Number of user agents in the simulation graph.",
     )
     parser.add_argument(
+        "--proportion_adversarial_agents",
+        type=float,
+        default=0,
+        help="Number of adversarial agents in the simulation graph.",
+    )
+    parser.add_argument(
         "--num_news_agents",
         type=int,
         default=1,
         help="Number of news source agents to add to the simulation.",
+    )
+    parser.add_argument(
+        "--adversarial_strategy",
+        type=str,
+        default="false_information",
+        help="Strategy of adversarial agents.",
     )
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
     parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
@@ -222,8 +234,12 @@ if __name__ == "__main__":
 
     if args.num_agents <= 0:
         raise ValueError("--num_agents must be > 0")
+    if args.proportion_adversarial_agents < 0 or args.proportion_adversarial_agents > 1:
+        raise ValueError("--proportion_adversarial_agents must be between 0 and 1")
     if args.num_news_agents < 0:
         raise ValueError("--num_news_agents must be >= 0")
+    if (args.adversarial_strategy != "false_information") and (args.adversarial_strategy != "red_teaming"):
+        raise ValueError("--num_adversarial_strategy is not a valid adversarial strategy.")
     if args.base_only and args.loras_path:
         print("Warning: --base_only is set, so LoRA models at --loras_path will be ignored.")
     if not args.base_only:
@@ -233,6 +249,8 @@ if __name__ == "__main__":
             raise ValueError("--lora_name_template must contain '{i}'")
 
     NUM_ENTITIES = args.num_agents
+    PROPORTION_ADVERSARIAL = args.proportion_adversarial_agents
+    STRATEGY = args.adversarial_strategy
     VLLM_MODEL_NAME = args.base_model
     PREFIX_CACHING = False
     QUESTIONS_FILE_PATH = "divisive_questions_probabilities.json"
@@ -319,8 +337,20 @@ if __name__ == "__main__":
         ds = load_dataset("Tianyi-Lab/Personas") # https://arxiv.org/abs/2503.16527
 
 
+    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=args.question_number)
+
+    print(f"Loaded question: {question}")
+
+    survey_config = {
+        'interval': 250,
+        'question': question,
+        'options': options
+    }
+
     attributed_names = set()
-    for i in range(NUM_ENTITIES):
+    number_normal_users = round((1 - PROPORTION_ADVERSARIAL) * NUM_ENTITIES)
+    number_adversarial = NUM_ENTITIES - number_normal_users
+    for i in range(number_normal_users):
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
@@ -331,6 +361,27 @@ if __name__ == "__main__":
             prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
+        entities.append(user)
+    
+    for i in range(number_adversarial):
+        model_id = np.random.choice(len(models), p=proportions)
+        model = models[model_id]
+        model_counts["Model_"+str(model_id)] += 1
+        prompt = ""
+        name = get_unique_name(attributed_names)
+        if args.base_only:
+            persona = random.choice(ds['train']['meta_persona'])
+            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
+            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
+        user = AdversarialUser(
+            name=name, 
+            model=model, 
+            model_id=model_id, 
+            question=question,
+            target_option = options[0],
+            survey_options = options,
+            add_survey_to_context=args.add_survey_to_context, 
+            base_system_prompt=prompt, adversarial_strategy=STRATEGY)
         entities.append(user)
 
     generic_news_source_names = [
@@ -369,16 +420,6 @@ if __name__ == "__main__":
     # Initialize Optimized Engine
     classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
     print(f"Using classifier template: {classifier_template}")
-
-    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=args.question_number)
-
-    print(f"Loaded question: {question}")
-
-    survey_config = {
-        'interval': 250,
-        'question': question,
-        'options': options
-    }
 
     graph_model = _resolve_graph_model(args)
     G = _build_graph(
@@ -423,7 +464,9 @@ if __name__ == "__main__":
         "num_loras": args.num_loras,
         "lora_indices": loaded_lora_indices,
         "num_agents": args.num_agents,
+        "proportion_adversarial_agents": args.proportion_adversarial_agents,
         "num_news_agents": args.num_news_agents,
+        "adversarial_strategy": args.adversarial_strategy,
         "graph_type": _infer_graph_type(graph_model),
         "homophily": args.homophily,
         "question_number": args.question_number,
