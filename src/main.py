@@ -381,7 +381,8 @@ if __name__ == "__main__":
             target_option = options[0],
             survey_options = options,
             add_survey_to_context=args.add_survey_to_context, 
-            base_system_prompt=prompt, adversarial_strategy=STRATEGY)
+            base_system_prompt=prompt, 
+            adversarial_strategy=STRATEGY)
         entities.append(user)
 
     generic_news_source_names = [
