@@ -223,6 +223,7 @@ if __name__ == "__main__":
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
     parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
     parser.add_argument("--base_only", action="store_true", help="Use only the base model for all agents, ignoring any LoRAs")
+    parser.add_argument("--centralize_adversaries", action="store_true", help="Place adversarial agents in the most central positions in the graph (based on degree centrality)")
 
     args = parser.parse_args()
 
@@ -348,6 +349,7 @@ if __name__ == "__main__":
     }
 
     attributed_names = set()
+    adversarial_agents_metadata = []
     number_normal_users = round((1 - PROPORTION_ADVERSARIAL) * NUM_ENTITIES)
     number_adversarial = NUM_ENTITIES - number_normal_users
     for i in range(number_normal_users):
@@ -369,6 +371,7 @@ if __name__ == "__main__":
         model_counts["Model_"+str(model_id)] += 1
         prompt = ""
         name = get_unique_name(attributed_names)
+        entity_id = len(entities)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
             prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
@@ -383,6 +386,13 @@ if __name__ == "__main__":
             add_survey_to_context=args.add_survey_to_context, 
             base_system_prompt=prompt, 
             adversarial_strategy=STRATEGY)
+        adversarial_agents_metadata.append({
+            "entity_id": entity_id,
+            "name": user.name,
+            "model_id": model_id,
+            "adversarial_strategy": STRATEGY,
+            "target_option": options[0],
+        })
         entities.append(user)
 
     generic_news_source_names = [
@@ -436,6 +446,7 @@ if __name__ == "__main__":
         graph=G,
         homophily=args.homophily,
         model_probabilities=model_probabilities,
+        centralize_adversaries=args.centralize_adversaries,
     )
 
     runnable_simulation = SocialMediaSim(
@@ -454,27 +465,43 @@ if __name__ == "__main__":
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
     run_parameters = {
+        # Full CLI argument snapshot for reproducibility.
+        "cli_args": vars(args).copy(),
         "start_time": args.start_time,
         "duration": args.duration,
         "effective_duration": effective_duration,
         "array_id": args.array_id,
         "job_id": args.job_id,
+        "survey_output": args.survey_output,
+        "visualizer_output": args.visualizer_output,
+        "metrics_output": args.metrics_output,
         "base_model": args.base_model,
+        "base_only": args.base_only,
         "loras_path": args.loras_path,
         "lora_name_template": args.lora_name_template,
         "num_loras": args.num_loras,
-        "lora_indices": loaded_lora_indices,
+        "requested_lora_indices": args.lora_indices,
+        "loaded_lora_indices": loaded_lora_indices,
         "num_agents": args.num_agents,
+        "number_normal_users": number_normal_users,
+        "number_adversarial_users": number_adversarial,
         "proportion_adversarial_agents": args.proportion_adversarial_agents,
         "num_news_agents": args.num_news_agents,
         "adversarial_strategy": args.adversarial_strategy,
+        "random_graph": args.random_graph,
+        "requested_graph_model": args.graph_model,
+        "resolved_graph_model": graph_model,
         "graph_type": _infer_graph_type(graph_model),
         "homophily": args.homophily,
+        "centralize_adversaries": args.centralize_adversaries,
         "question_number": args.question_number,
         "tweet_files": args.tweet_files,
         "add_survey_to_context": args.add_survey_to_context,
         "proportions_option": args.proportions_option,
         "proportions": proportions.tolist(),
+        "adversarial_agents": adversarial_agents_metadata,
+        "adversarial_agent_entity_ids": [agent["entity_id"] for agent in adversarial_agents_metadata],
+        "adversarial_agent_names": [agent["name"] for agent in adversarial_agents_metadata],
     }
 
     print("Resolved run parameters:")

@@ -275,5 +275,6 @@ class AdversarialUser(User):
         self._survey_options = opts
         self._survey_prompt_without_adversarial = base_system_prompt.strip()
         self._adversarial_strategy: AdversarialStrategy = adversarial_strategy
+        self.is_adversary = True
 
 

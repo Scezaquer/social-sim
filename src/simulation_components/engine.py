@@ -24,6 +24,7 @@ class SimEngine:
                  survey_config: dict[str, Any] = None,
                  homophily: bool = False,
                  model_probabilities: list[dict[str, float]] | dict[str, dict[str, float]] | None = None,
+                 centralize_adversaries: bool = False
                  ):
         self._threads = [] if threads is None else threads
         self._entity_activity_probs = None
@@ -39,6 +40,7 @@ class SimEngine:
         self._model_probabilities = model_probabilities
         self._homophily_metrics = None
         self._behavioral_metrics = None
+        self._centralize_adversaries = centralize_adversaries
         self._visualizer_data = {
             "nodes": [],
             "edges": [],
@@ -138,6 +140,39 @@ class SimEngine:
 
         return node_to_entity_idx
 
+    def _assign_adversaries_to_central_nodes(
+        self,
+        graph: Any,
+        remaining_nodes: list[int],
+        remaining_indices: list[int],
+        entities: Sequence[Entity],
+    ) -> dict[int, int]:
+        if not remaining_nodes or not remaining_indices:
+            return {}
+
+        if graph.is_directed():
+            degree_dict = dict(graph.in_degree())
+        else:
+            degree_dict = dict(graph.degree())
+
+        sorted_nodes = sorted(degree_dict, key=degree_dict.get, reverse=True)
+        node_to_entity_idx = {}
+        adversary_indices = []
+        non_adversary_indices = []
+        for i in remaining_indices:
+            if getattr(entities[i], 'is_adversary', False):
+                adversary_indices.append(i)
+            else:
+                non_adversary_indices.append(i)
+
+        for node, entity_idx in zip(sorted_nodes, adversary_indices):
+            node_to_entity_idx[node] = entity_idx
+
+        for node, entity_idx in zip(sorted_nodes[len(adversary_indices):], non_adversary_indices):
+            node_to_entity_idx[node] = entity_idx
+
+        return node_to_entity_idx
+
     def _compute_homophily_metrics(self, entities: Sequence[Entity]) -> dict[str, float]:
         return compute_homophily_metrics(
             list(entities),
@@ -229,6 +264,14 @@ class SimEngine:
                     entities=entities,
                 )
                 node_to_entity_idx.update(homophily_assignment)
+            elif self.centralize_adversaries:
+                adversary_assignment = self._assign_adversaries_to_central_nodes(
+                    graph=G,
+                    remaining_nodes=remaining_nodes,
+                    remaining_indices=remaining_indices,
+                    entities=entities,
+                )
+                node_to_entity_idx.update(adversary_assignment)
             else:
                 # Shuffle remaining indices to avoid correlation
                 np.random.shuffle(remaining_indices)
@@ -264,10 +307,13 @@ class SimEngine:
 
         # Populate visualizer data for nodes and edges
         for i, entity in enumerate(entities):
+            is_news_source = isinstance(entity, NewsSource)
+            is_adversary = bool(getattr(entity, "is_adversary", False))
             self._visualizer_data["nodes"].append({
                 "id": i,
                 "name": entity.name,
-                "type": "NewsSource" if isinstance(entity, NewsSource) else "User",
+                "type": "NewsSource" if is_news_source else ("AdversarialUser" if is_adversary else "User"),
+                "is_adversary": is_adversary,
                 "model_id": getattr(entity, "model_id", None)
             })
         for u_idx, neighbors in enumerate(self._social_graph):
