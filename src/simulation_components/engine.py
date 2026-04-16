@@ -264,7 +264,7 @@ class SimEngine:
                     entities=entities,
                 )
                 node_to_entity_idx.update(homophily_assignment)
-            elif self.centralize_adversaries:
+            elif self._centralize_adversaries:
                 adversary_assignment = self._assign_adversaries_to_central_nodes(
                     graph=G,
                     remaining_nodes=remaining_nodes,
