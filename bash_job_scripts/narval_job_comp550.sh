@@ -68,7 +68,7 @@ cleanup() {
 trap 'cleanup "$?"' EXIT
 
 # Fixed run settings requested.
-BASE_MODEL="meta-llama/Llama-3.1-8B"
+BASE_MODEL="Qwen/Qwen2.5-7B"
 GRAPH_MODEL="powerlaw_cluster"
 NUM_NEWS_AGENTS="0"
 SURVEY_CONTEXT_FLAG="off"

@@ -380,6 +380,19 @@ if __name__ == "__main__":
             - It can express an opinion, reaction, or personal experience.
             - If it is a reply, assume you are responding to a generic post (do not ask what it is).
 
+            If the output contains any of the following patterns, it is INVALID:
+                - "How can I help"
+                - "I'm an AI"
+                - "assistant"
+                - asking the user a question
+                - offering help or assistance
+            
+            Examples of valid posts:
+                - just burned my toast again. this day is off to a strong start
+                - the bus driver skipped my stop and now I'm late, fantastic
+                - idk why everyone loves this show, it's kind of mid
+                - finally fixed that bug after 3 hours. i need a break
+
             Persona:""" + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
