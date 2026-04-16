@@ -35,14 +35,16 @@ LOCAL_ROOT="${SLURM_TMPDIR:?}/social-sim-comp550-${SLURM_JOB_ID}-${SLURM_ARRAY_T
 LOCAL_REPO="$LOCAL_ROOT/repo"
 LOCAL_HF_HOME="$LOCAL_ROOT/HF-cache"
 LOCAL_HF_HUB_CACHE="$LOCAL_HF_HOME/hub"
+LOCAL_HF_DATASETS_CACHE="$LOCAL_HF_HOME/datasets"
 LOCAL_UNSLOTH_CACHE_DIR="$LOCAL_ROOT/unsloth-cache"
 LOCAL_OUTPUT_DIR="$LOCAL_ROOT/output"
 FINAL_OUTPUT_DIR="${COMP550_OUTPUT_DIR:-$SCRATCH/social-sim-comp550}/${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 
-mkdir -p "$LOCAL_REPO" "$LOCAL_HF_HUB_CACHE" "$LOCAL_UNSLOTH_CACHE_DIR" "$LOCAL_OUTPUT_DIR" "$FINAL_OUTPUT_DIR"
+mkdir -p "$LOCAL_REPO" "$LOCAL_HF_HUB_CACHE" "$LOCAL_HF_DATASETS_CACHE" "$LOCAL_UNSLOTH_CACHE_DIR" "$LOCAL_OUTPUT_DIR" "$FINAL_OUTPUT_DIR"
 
 export HF_HOME="$LOCAL_HF_HOME"
 export HF_HUB_CACHE="$LOCAL_HF_HUB_CACHE"
+export HF_DATASETS_CACHE="$LOCAL_HF_DATASETS_CACHE"
 export TRANSFORMERS_CACHE="$LOCAL_HF_HUB_CACHE"
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
@@ -199,6 +201,36 @@ if [[ ! -f "$RESOLVED_BASE_MODEL/config.json" ]]; then
 	exit 1
 fi
 
+PERSONAS_DATASET_CACHE_DIR="Tianyi-Lab___personas"
+SOURCE_PERSONAS_DATASET_DIR=""
+SOURCE_DATASETS_CACHE_CANDIDATES=(
+	"${SOURCE_HF_DATASETS_CACHE:-}"
+	"${SOURCE_HF_HOME:-}/datasets"
+	"$SCRATCH/HF-cache/datasets"
+	"$HOME/.cache/huggingface/datasets"
+)
+for candidate in "${SOURCE_DATASETS_CACHE_CANDIDATES[@]}"; do
+	[[ -z "$candidate" ]] && continue
+	if [[ -d "$candidate/$PERSONAS_DATASET_CACHE_DIR" ]]; then
+		SOURCE_PERSONAS_DATASET_DIR="$candidate/$PERSONAS_DATASET_CACHE_DIR"
+		break
+	fi
+done
+
+if [[ -z "$SOURCE_PERSONAS_DATASET_DIR" ]]; then
+	echo "Could not find cached dataset directory $PERSONAS_DATASET_CACHE_DIR in any source datasets cache root." >&2
+	echo "Checked candidates:" >&2
+	for candidate in "${SOURCE_DATASETS_CACHE_CANDIDATES[@]}"; do
+		[[ -n "$candidate" ]] && echo "  - $candidate" >&2
+	done
+	exit 1
+fi
+
+LOCAL_PERSONAS_DATASET_DIR="$LOCAL_HF_DATASETS_CACHE/$PERSONAS_DATASET_CACHE_DIR"
+echo "Staging dataset cache for Tianyi-Lab/Personas into $LOCAL_PERSONAS_DATASET_DIR"
+mkdir -p "$LOCAL_PERSONAS_DATASET_DIR"
+rsync -a "$SOURCE_PERSONAS_DATASET_DIR/" "$LOCAL_PERSONAS_DATASET_DIR/"
+
 CMD=(
 	python -u "$LOCAL_REPO/src/main.py"
 	--survey_output "$LOCAL_SURVEY_OUTPUT"
@@ -241,6 +273,8 @@ echo "centralize_adversaries=${CENTRALIZE_FLAG}"
 echo "adversarial_strategy=${ADVERSARIAL_STRATEGY}"
 echo "local_repo=${LOCAL_REPO}"
 echo "local_hf_cache=${LOCAL_HF_HUB_CACHE}"
+echo "local_hf_datasets_cache=${LOCAL_HF_DATASETS_CACHE}"
+echo "source_personas_dataset_dir=${SOURCE_PERSONAS_DATASET_DIR}"
 echo "survey_output=${LOCAL_SURVEY_OUTPUT}"
 echo "visualizer_output=${LOCAL_VISUALIZER_OUTPUT}"
 echo "metrics_output=${LOCAL_METRICS_OUTPUT}"
