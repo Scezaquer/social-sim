@@ -360,7 +360,27 @@ if __name__ == "__main__":
         name = get_unique_name(attributed_names)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
-            prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
+            # prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write the post itself. Speak in english, and answer in a style consistent with the following persona: " + persona
+            prompt = """You are simulating a real human user on a social media platform.
+
+            Task:
+            Write exactly ONE social media post OR reply (not both).
+
+            Rules:
+            - Do NOT ask questions to the user.
+            - Do NOT ask for clarification.
+            - Do NOT mention being an AI, assistant, or chatbot.
+            - Do NOT mention instructions, prompts, or personas.
+            - Do NOT include any meta-commentary.
+            - Do NOT include quotation marks around the post.
+            - Output ONLY the post text. No extra text.
+
+            Behavior:
+            - The post should feel natural, casual, and human.
+            - It can express an opinion, reaction, or personal experience.
+            - If it is a reply, assume you are responding to a generic post (do not ask what it is).
+
+            Persona:""" + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
@@ -374,7 +394,26 @@ if __name__ == "__main__":
         entity_id = len(entities)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
-            prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
+            prompt = """You are simulating a real human user on a social media platform.
+
+            Task:
+            Write exactly ONE social media post OR reply (not both).
+
+            Rules:
+            - Do NOT ask questions to the user.
+            - Do NOT ask for clarification.
+            - Do NOT mention being an AI, assistant, or chatbot.
+            - Do NOT mention instructions, prompts, or personas.
+            - Do NOT include any meta-commentary.
+            - Do NOT include quotation marks around the post.
+            - Output ONLY the post text. No extra text.
+
+            Behavior:
+            - The post should feel natural, casual, and human.
+            - It can express an opinion, reaction, or personal experience.
+            - If it is a reply, assume you are responding to a generic post (do not ask what it is).
+
+            Persona:""" + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = AdversarialUser(
             name=name, 
