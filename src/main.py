@@ -361,10 +361,11 @@ if __name__ == "__main__":
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
             # prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write the post itself. Speak in english, and answer in a style consistent with the following persona: " + persona
+            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
             prompt = """You are simulating a real human user on a social media platform.
 
             Task:
-            Write exactly ONE social media post OR reply (not both).
+            Write a social media post or a reply.
 
             Rules:
             - Do NOT ask questions to the user.
@@ -374,27 +375,20 @@ if __name__ == "__main__":
             - Do NOT include any meta-commentary.
             - Do NOT include quotation marks around the post.
             - Output ONLY the post text. No extra text.
+            - ONLY write in english.
 
             Behavior:
             - The post should feel natural, casual, and human.
             - It can express an opinion, reaction, or personal experience.
-            - If it is a reply, assume you are responding to a generic post (do not ask what it is).
+            - Half of the time, express negative feelings and disagree with others.
 
-            If the output contains any of the following patterns, it is INVALID:
-                - "How can I help"
-                - "I'm an AI"
-                - "assistant"
-                - asking the user a question
-                - offering help or assistance
-            
             Examples of valid posts:
-                - just burned my toast again. this day is off to a strong start
-                - the bus driver skipped my stop and now I'm late, fantastic
-                - idk why everyone loves this show, it's kind of mid
-                - finally fixed that bug after 3 hours. i need a break
+            - just burned my toast again. this day is off to a strong start
+            - the bus driver skipped my stop and now I'm late, fantastic
+            - idk why everyone loves this show, it's kind of mid
+            - finally fixed that bug after 3 hours. i need a break
 
             Persona:""" + persona
-            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
     
@@ -407,6 +401,7 @@ if __name__ == "__main__":
         entity_id = len(entities)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
+            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
             prompt = """You are simulating a real human user on a social media platform.
 
             Task:
@@ -426,8 +421,7 @@ if __name__ == "__main__":
             - It can express an opinion, reaction, or personal experience.
             - If it is a reply, assume you are responding to a generic post (do not ask what it is).
 
-            Persona:""" + persona
-            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
+            Persona:""" + persona + ", Name: " + name
         user = AdversarialUser(
             name=name, 
             model=model, 
