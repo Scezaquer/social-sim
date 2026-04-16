@@ -360,7 +360,7 @@ if __name__ == "__main__":
         name = get_unique_name(attributed_names)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
-            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
+            prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
         entities.append(user)
@@ -374,7 +374,7 @@ if __name__ == "__main__":
         entity_id = len(entities)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
-            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
+            prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
         user = AdversarialUser(
             name=name, 
