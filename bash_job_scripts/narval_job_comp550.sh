@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=ctb-liyue
 #SBATCH --job-name=Comp550BaseOnly
-#SBATCH --array=26,236,318,352,481,525,560
+#SBATCH --array=318
 #SBATCH --time=3:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
