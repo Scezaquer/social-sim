@@ -15,7 +15,7 @@ def last_line_contains_cancelled(file_path: Path) -> bool:
 		return False
 
 	# Check the final line as requested; trim surrounding whitespace.
-	return "out of range" in lines[-1].strip()
+	return not ("metrics saved to" in lines[-1].strip())
 
 
 def find_cancelled_indices(base_dir: Path, start: int, end: int) -> list[int]:
