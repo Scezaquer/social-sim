@@ -21,7 +21,7 @@ def last_line_contains_cancelled(file_path: Path) -> bool:
 def find_cancelled_indices(base_dir: Path, start: int, end: int) -> list[int]:
 	cancelled = []
 	for i in range(start, end + 1):
-		file_name = f"slurm-59421080_{i}.out"
+		file_name = f"slurm-59453213_{i}.out"
 		file_path = base_dir / file_name
 		if file_path.is_file() and last_line_contains_cancelled(file_path):
 			cancelled.append(i)
@@ -31,7 +31,7 @@ def find_cancelled_indices(base_dir: Path, start: int, end: int) -> list[int]:
 def main() -> None:
 	parser = argparse.ArgumentParser(
 		description=(
-			"Find i values where slurm-59421080_{i}.out has 'CANCELLED' in the last line."
+			"Find i values where slurm-59453213_{i}.out has 'CANCELLED' in the last line."
 		)
 	)
 	parser.add_argument(
