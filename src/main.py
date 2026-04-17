@@ -9,7 +9,7 @@ logging.getLogger("transformers.modeling_attn_mask_utils").setLevel(logging.ERRO
 
 from simulation_components.unsloth_model import UnslothLanguageModel, UnslothLora
 from simulation_components.simulation import SocialMediaSim
-from simulation_components.entities import User, NewsSource
+from simulation_components.entities import User, AdversarialUser, NewsSource
 from simulation_components.engine import SimEngine
 import numpy as np
 import torch
@@ -203,14 +203,27 @@ if __name__ == "__main__":
         help="Number of user agents in the simulation graph.",
     )
     parser.add_argument(
+        "--proportion_adversarial_agents",
+        type=float,
+        default=0,
+        help="Number of adversarial agents in the simulation graph.",
+    )
+    parser.add_argument(
         "--num_news_agents",
         type=int,
         default=1,
         help="Number of news source agents to add to the simulation.",
     )
+    parser.add_argument(
+        "--adversarial_strategy",
+        type=str,
+        default="false_information",
+        help="Strategy of adversarial agents.",
+    )
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
     parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
     parser.add_argument("--base_only", action="store_true", help="Use only the base model for all agents, ignoring any LoRAs")
+    parser.add_argument("--centralize_adversaries", action="store_true", help="Place adversarial agents in the most central positions in the graph (based on degree centrality)")
 
     args = parser.parse_args()
 
@@ -222,8 +235,12 @@ if __name__ == "__main__":
 
     if args.num_agents <= 0:
         raise ValueError("--num_agents must be > 0")
+    if args.proportion_adversarial_agents < 0 or args.proportion_adversarial_agents > 1:
+        raise ValueError("--proportion_adversarial_agents must be between 0 and 1")
     if args.num_news_agents < 0:
         raise ValueError("--num_news_agents must be >= 0")
+    if (args.adversarial_strategy != "false_information") and (args.adversarial_strategy != "red_teaming"):
+        raise ValueError("--num_adversarial_strategy is not a valid adversarial strategy.")
     if args.base_only and args.loras_path:
         print("Warning: --base_only is set, so LoRA models at --loras_path will be ignored.")
     if not args.base_only:
@@ -233,6 +250,8 @@ if __name__ == "__main__":
             raise ValueError("--lora_name_template must contain '{i}'")
 
     NUM_ENTITIES = args.num_agents
+    PROPORTION_ADVERSARIAL = args.proportion_adversarial_agents
+    STRATEGY = args.adversarial_strategy
     VLLM_MODEL_NAME = args.base_model
     PREFIX_CACHING = False
     QUESTIONS_FILE_PATH = "divisive_questions_probabilities.json"
@@ -319,8 +338,21 @@ if __name__ == "__main__":
         ds = load_dataset("Tianyi-Lab/Personas") # https://arxiv.org/abs/2503.16527
 
 
+    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=args.question_number)
+
+    print(f"Loaded question: {question}")
+
+    survey_config = {
+        'interval': 250,
+        'question': question,
+        'options': options
+    }
+
     attributed_names = set()
-    for i in range(NUM_ENTITIES):
+    adversarial_agents_metadata = []
+    number_normal_users = round((1 - PROPORTION_ADVERSARIAL) * NUM_ENTITIES)
+    number_adversarial = NUM_ENTITIES - number_normal_users
+    for i in range(number_normal_users):
         model_id = np.random.choice(len(models), p=proportions)
         model = models[model_id]
         model_counts["Model_"+str(model_id)] += 1
@@ -328,9 +360,85 @@ if __name__ == "__main__":
         name = get_unique_name(attributed_names)
         if args.base_only:
             persona = random.choice(ds['train']['meta_persona'])
-            prompt = "You are a user on a social media platform. Write a new post, or a comment in response to a thread. Only write in character. Speak in english, and answer in a style consistent with the following persona: " + persona
+            # prompt = "You are a user on a social media platform. Write a new post on a topic of your choice, or a comment in response to a thread. Only write the post itself. Speak in english, and answer in a style consistent with the following persona: " + persona
             name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
+            prompt = """You are simulating a real human user on a social media platform.
+
+            Task:
+            Write a social media post or a reply.
+
+            Rules:
+            - Do NOT ask questions to the user.
+            - Do NOT ask for clarification.
+            - Do NOT mention being an AI, assistant, or chatbot.
+            - Do NOT mention instructions, prompts, or personas.
+            - Do NOT include any meta-commentary.
+            - Do NOT include quotation marks around the post.
+            - Output ONLY the post text. No extra text.
+            - ONLY write in english.
+
+            Behavior:
+            - The post should feel natural, casual, and human.
+            - It can express an opinion, reaction, or personal experience.
+            - Half of the time, express negative feelings and disagree with others.
+
+            Examples of valid posts:
+            - just burned my toast again. this day is off to a strong start
+            - the bus driver skipped my stop and now I'm late, fantastic
+            - idk why everyone loves this show, it's kind of mid
+            - finally fixed that bug after 3 hours. i need a break
+
+            Persona:""" + persona
         user = User(name=name, model=model, model_id=model_id, add_survey_to_context=args.add_survey_to_context, system_prompt=prompt)
+        entities.append(user)
+    
+    for i in range(number_adversarial):
+        model_id = np.random.choice(len(models), p=proportions)
+        model = models[model_id]
+        model_counts["Model_"+str(model_id)] += 1
+        prompt = ""
+        name = get_unique_name(attributed_names)
+        entity_id = len(entities)
+        if args.base_only:
+            persona = random.choice(ds['train']['meta_persona'])
+            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
+            prompt = """You are simulating a real human user on a social media platform.
+
+            Task:
+            Write exactly ONE social media post OR reply (not both).
+
+            Rules:
+            - Do NOT ask questions to the user.
+            - Do NOT ask for clarification.
+            - Do NOT mention being an AI, assistant, or chatbot.
+            - Do NOT mention instructions, prompts, or personas.
+            - Do NOT include any meta-commentary.
+            - Do NOT include quotation marks around the post.
+            - Output ONLY the post text. No extra text.
+
+            Behavior:
+            - The post should feel natural, casual, and human.
+            - It can express an opinion, reaction, or personal experience.
+            - If it is a reply, assume you are responding to a generic post (do not ask what it is).
+
+            Persona:""" + persona + ", Name: " + name
+        user = AdversarialUser(
+            name=name, 
+            model=model, 
+            model_id=model_id, 
+            question=question,
+            target_option = options[0],
+            survey_options = options,
+            add_survey_to_context=args.add_survey_to_context, 
+            base_system_prompt=prompt, 
+            adversarial_strategy=STRATEGY)
+        adversarial_agents_metadata.append({
+            "entity_id": entity_id,
+            "name": user.name,
+            "model_id": model_id,
+            "adversarial_strategy": STRATEGY,
+            "target_option": options[0],
+        })
         entities.append(user)
 
     generic_news_source_names = [
@@ -370,16 +478,6 @@ if __name__ == "__main__":
     classifier_template = os.path.expanduser("~/scratch/vinai/bertweet-base-action-classifier-{n}")
     print(f"Using classifier template: {classifier_template}")
 
-    question, options, model_probabilities = load_questions_and_options(QUESTIONS_FILE_PATH, question_number=args.question_number)
-
-    print(f"Loaded question: {question}")
-
-    survey_config = {
-        'interval': 250,
-        'question': question,
-        'options': options
-    }
-
     graph_model = _resolve_graph_model(args)
     G = _build_graph(
         graph_model=graph_model,
@@ -394,6 +492,7 @@ if __name__ == "__main__":
         graph=G,
         homophily=args.homophily,
         model_probabilities=model_probabilities,
+        centralize_adversaries=args.centralize_adversaries,
     )
 
     runnable_simulation = SocialMediaSim(
@@ -412,25 +511,43 @@ if __name__ == "__main__":
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
     run_parameters = {
+        # Full CLI argument snapshot for reproducibility.
+        "cli_args": vars(args).copy(),
         "start_time": args.start_time,
         "duration": args.duration,
         "effective_duration": effective_duration,
         "array_id": args.array_id,
         "job_id": args.job_id,
+        "survey_output": args.survey_output,
+        "visualizer_output": args.visualizer_output,
+        "metrics_output": args.metrics_output,
         "base_model": args.base_model,
+        "base_only": args.base_only,
         "loras_path": args.loras_path,
         "lora_name_template": args.lora_name_template,
         "num_loras": args.num_loras,
-        "lora_indices": loaded_lora_indices,
+        "requested_lora_indices": args.lora_indices,
+        "loaded_lora_indices": loaded_lora_indices,
         "num_agents": args.num_agents,
+        "number_normal_users": number_normal_users,
+        "number_adversarial_users": number_adversarial,
+        "proportion_adversarial_agents": args.proportion_adversarial_agents,
         "num_news_agents": args.num_news_agents,
+        "adversarial_strategy": args.adversarial_strategy,
+        "random_graph": args.random_graph,
+        "requested_graph_model": args.graph_model,
+        "resolved_graph_model": graph_model,
         "graph_type": _infer_graph_type(graph_model),
         "homophily": args.homophily,
+        "centralize_adversaries": args.centralize_adversaries,
         "question_number": args.question_number,
         "tweet_files": args.tweet_files,
         "add_survey_to_context": args.add_survey_to_context,
         "proportions_option": args.proportions_option,
         "proportions": proportions.tolist(),
+        "adversarial_agents": adversarial_agents_metadata,
+        "adversarial_agent_entity_ids": [agent["entity_id"] for agent in adversarial_agents_metadata],
+        "adversarial_agent_names": [agent["name"] for agent in adversarial_agents_metadata],
     }
 
     print("Resolved run parameters:")
