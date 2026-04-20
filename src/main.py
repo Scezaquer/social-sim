@@ -325,7 +325,7 @@ if __name__ == "__main__":
             proportions = np.array([1.0])
             print("Using base model only.")
         else:
-            if loaded_lora_indices and len(default_proportions) >= (max(loaded_lora_indices) + 1):
+            if loaded_lora_indices and len(default_proportions) >= (max(loaded_lora_indices) + 1) and args.proportions_option != "uniform":
                 selected_defaults = default_proportions[loaded_lora_indices]
                 proportions = selected_defaults / selected_defaults.sum()
                 print("Using built-in default proportions for selected LoRA indices.")
