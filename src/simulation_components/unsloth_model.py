@@ -62,12 +62,13 @@ class UnslothLanguageModel:
 
     self._model_name = model_name
     self._nbr_lora_adapters = 0
+    self._amp_dtype = self._get_amp_dtype()
     
     # Initialize Unsloth model
     self.model, self.tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
         max_seq_length=max_seq_length,
-        dtype=torch.bfloat16,
+        dtype=self._amp_dtype,
         load_in_4bit=load_in_4bit,
         **kwargs
     )
@@ -91,6 +92,12 @@ class UnslothLanguageModel:
     if self.tokenizer.chat_template is None or "Qwen" in self._model_name or "Minitaur" in self._model_name:
         print("Using custom ChatML template.")
         self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
+
+    @staticmethod
+    def _get_amp_dtype() -> torch.dtype:
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+        return torch.float16
 
   def finalize_inference(self):
     """Call after loading all LoRA adapters to optimize for inference."""
@@ -159,9 +166,9 @@ class UnslothLanguageModel:
         for term in terminators:
             stopping_criteria.append(StopOnString(self.tokenizer, term, prompt_len))
     
-    # Use autocast to ensure operations are performed in bfloat16
+    # Use autocast with a dtype supported by the current CUDA device.
     with torch.no_grad():
-        with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+        with torch.amp.autocast("cuda", dtype=self._amp_dtype):
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
@@ -207,11 +214,11 @@ class UnslothLanguageModel:
             full_text = prompt + response
             inputs = self.tokenizer(full_text, return_tensors="pt").to("cuda")
             
-            # Use autocast to ensure operations are performed in bfloat16
+            # Use autocast with a dtype supported by the current CUDA device.
             # This is specifically needed for models like Gemma-3 where the unsloth compiler 
             # might have internal float32/bfloat16 mismatches in the forward pass.
             tmp = self.tokenizer("test", return_tensors="pt").to("cuda")
-            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+            with torch.amp.autocast("cuda", dtype=self._amp_dtype):
                 tmp = self.model(**tmp)
                 outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
