@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=Comp550MinitaurLoras
-#SBATCH --array=1-5
-#SBATCH --time=3:00:00
+#SBATCH --array=1-720
+#SBATCH --time=12:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1

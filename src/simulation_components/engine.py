@@ -535,8 +535,12 @@ class SimEngine:
                     })
                     print(f"--- Survey Completed ---\n")
                     print(f"Survey results at step {steps}:")
+                    response_counts = {}
                     for name, response in results.items():
-                        print(f"  {name}: {response}")
+                        response_counts[response] = response_counts.get(response, 0) + 1
+                    for option in options:
+                        count = response_counts.get(option, 0)
+                        print(f"  {option}: {count}")
                     if steps == max_steps:
                         break
 
