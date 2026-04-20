@@ -266,6 +266,12 @@ if __name__ == "__main__":
         local_files_only=True,
     )
 
+    adversarial_model = base_model if args.adversarial_model is None else UnslothLanguageModel(
+        model_name=args.adversarial_model,
+        load_in_4bit=True,
+        local_files_only=True,
+    )
+
     # Number of total actions from each cluster in the training data
     # We create agents according to these proportions
     default_proportions = np.array([
@@ -421,15 +427,9 @@ if __name__ == "__main__":
 
         Persona:""" + persona + ", Name: " + name
 
-        model = base_model if args.adversarial_model is None else UnslothLanguageModel(
-            model_name=args.adversarial_model,
-            load_in_4bit=True,
-            local_files_only=True,
-        )
-
         user = AdversarialUser(
             name=name, 
-            model=model,
+            model=adversarial_model,
             model_id=model_id, 
             question=question,
             target_option = options[0],
