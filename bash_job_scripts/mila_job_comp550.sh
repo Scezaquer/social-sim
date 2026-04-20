@@ -30,45 +30,10 @@ if (( SLURM_ARRAY_TASK_ID < 1 || SLURM_ARRAY_TASK_ID > 720 )); then
     exit 1
 fi
 
-SOURCE_HF_HOME="${HF_HOME:-}"
-SOURCE_HF_HUB_CACHE="${HF_HUB_CACHE:-}"
-SOURCE_HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-}"
-
-LOCAL_ROOT="${SLURM_TMPDIR:?}/social-sim-comp550-${SLURM_JOB_ID}-${SLURM_ARRAY_TASK_ID}"
-LOCAL_REPO="$LOCAL_ROOT/repo"
-LOCAL_HF_HOME="$LOCAL_ROOT/HF-cache"
-LOCAL_HF_HUB_CACHE="$LOCAL_HF_HOME/hub"
-LOCAL_HF_DATASETS_CACHE="$LOCAL_HF_HOME/datasets"
-LOCAL_UNSLOTH_CACHE_DIR="$LOCAL_ROOT/unsloth-cache"
-LOCAL_OUTPUT_DIR="$LOCAL_ROOT/output"
-FINAL_OUTPUT_DIR="${COMP550_OUTPUT_DIR:-$SCRATCH/social-sim-comp550}/${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
-
-mkdir -p "$LOCAL_REPO" "$LOCAL_HF_HUB_CACHE" "$LOCAL_HF_DATASETS_CACHE" "$LOCAL_UNSLOTH_CACHE_DIR" "$LOCAL_OUTPUT_DIR" "$FINAL_OUTPUT_DIR"
-
-export HF_HOME="$LOCAL_HF_HOME"
-export HF_HUB_CACHE="$LOCAL_HF_HUB_CACHE"
-export HF_DATASETS_CACHE="$LOCAL_HF_DATASETS_CACHE"
-export TRANSFORMERS_CACHE="$LOCAL_HF_HUB_CACHE"
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-export UNSLOTH_CACHE_DIR="$LOCAL_UNSLOTH_CACHE_DIR"
-export TMPDIR="$SLURM_TMPDIR"
-export TOKENIZERS_PARALLELISM=false
-
-cleanup() {
-    local exit_code="$1"
-    mkdir -p "$FINAL_OUTPUT_DIR"
-    if [[ -d "$LOCAL_OUTPUT_DIR" ]]; then
-        cp -a "$LOCAL_OUTPUT_DIR/." "$FINAL_OUTPUT_DIR/" || true
-    fi
-    if [[ -n "${THREADS_OUTPUT:-}" ]] && [[ -f "$THREADS_OUTPUT" ]]; then
-        cp -a "$THREADS_OUTPUT" "$FINAL_OUTPUT_DIR/" || true
-    fi
-    return "$exit_code"
-}
-
-trap 'cleanup "$?"' EXIT
+export HF_HUB_CACHE=$SCRATCH/HF-cache
+export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-$HF_HUB_CACHE/datasets}"
+export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HUB_CACHE}"
+export UNSLOTH_CACHE_DIR="${UNSLOTH_CACHE_DIR:-$SLURM_TMPDIR/unsloth-cache}"
 
 # Fixed run settings requested.
 BASE_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"
@@ -131,14 +96,7 @@ SURVEY_OUTPUT="survey_comp550_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 VISUALIZER_OUTPUT="visualizer_comp550_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 METRICS_OUTPUT="behavioral_metrics_comp550_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 
-LOCAL_SURVEY_OUTPUT="$LOCAL_OUTPUT_DIR/$SURVEY_OUTPUT"
-LOCAL_VISUALIZER_OUTPUT="$LOCAL_OUTPUT_DIR/$VISUALIZER_OUTPUT"
-LOCAL_METRICS_OUTPUT="$LOCAL_OUTPUT_DIR/$METRICS_OUTPUT"
-THREADS_OUTPUT="$LOCAL_REPO/simulation_threads_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
-
-echo "Staging repository code and data into $LOCAL_REPO"
-mkdir -p "$LOCAL_REPO/src"
-rsync -a "$REPO_ROOT/src/" "$LOCAL_REPO/src/"
+THREADS_OUTPUT="$REPO_ROOT/simulation_threads_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 
 REQUIRED_FILES=(
     "divisive_questions_probabilities.json"
@@ -148,115 +106,15 @@ for file_name in "${REQUIRED_FILES[@]}"; do
         echo "Missing required file: $REPO_ROOT/$file_name" >&2
         exit 1
     fi
-    cp -a "$REPO_ROOT/$file_name" "$LOCAL_REPO/$file_name"
 done
-
-SOURCE_CACHE_CANDIDATES=(
-    "$SOURCE_HF_HUB_CACHE"
-    "${SOURCE_HF_HOME:+$SOURCE_HF_HOME/hub}"
-    "$SOURCE_HF_HOME"
-    "$SCRATCH/HF-cache/hub"
-    "$SCRATCH/HF-cache"
-    "$HOME/.cache/huggingface/hub"
-)
-
-stage_model_snapshot() {
-    local model_id="$1"
-    local model_cache_dir="models--${model_id//\//--}"
-    local source_model_cache_dir=""
-
-    for candidate in "${SOURCE_CACHE_CANDIDATES[@]}"; do
-        [[ -z "$candidate" ]] && continue
-        if [[ -d "$candidate/$model_cache_dir" ]]; then
-            source_model_cache_dir="$candidate/$model_cache_dir"
-            break
-        fi
-    done
-
-    if [[ -z "$source_model_cache_dir" ]]; then
-        echo "Could not find cached model $model_cache_dir in any source HF cache root." >&2
-        echo "Checked candidates:" >&2
-        for candidate in "${SOURCE_CACHE_CANDIDATES[@]}"; do
-            [[ -n "$candidate" ]] && echo "  - $candidate" >&2
-        done
-        exit 1
-    fi
-
-    local local_model_cache_dir="$LOCAL_HF_HUB_CACHE/$model_cache_dir"
-    local resolved_model_path=""
-
-    echo "Staging model cache for $model_id into $local_model_cache_dir"
-    mkdir -p "$local_model_cache_dir"
-    rsync -a "$source_model_cache_dir/" "$local_model_cache_dir/"
-
-    if [[ -f "$local_model_cache_dir/refs/main" ]]; then
-        local snapshot_revision
-        snapshot_revision=$(<"$local_model_cache_dir/refs/main")
-        snapshot_revision="${snapshot_revision//$'\r'/}"
-        snapshot_revision="${snapshot_revision//$'\n'/}"
-        resolved_model_path="$local_model_cache_dir/snapshots/$snapshot_revision"
-    fi
-
-    if [[ -z "$resolved_model_path" ]]; then
-        local snapshot_candidates=("$local_model_cache_dir"/snapshots/*)
-        if [[ -e "${snapshot_candidates[0]}" ]]; then
-            resolved_model_path="${snapshot_candidates[0]}"
-        fi
-    fi
-
-    if [[ -z "$resolved_model_path" ]] || [[ ! -d "$resolved_model_path" ]]; then
-        echo "Could not resolve local snapshot directory for $model_id under $local_model_cache_dir" >&2
-        exit 1
-    fi
-
-    if [[ ! -f "$resolved_model_path/config.json" ]]; then
-        echo "Resolved model path does not contain config.json: $resolved_model_path" >&2
-        exit 1
-    fi
-
-    printf "%s\n" "$resolved_model_path"
-}
-
-RESOLVED_BASE_MODEL=$(stage_model_snapshot "$BASE_MODEL")
-RESOLVED_ADVERSARIAL_MODEL=$(stage_model_snapshot "$ADVERSARIAL_MODEL")
-
-PERSONAS_DATASET_CACHE_DIR="Tianyi-Lab___personas"
-SOURCE_PERSONAS_DATASET_DIR=""
-SOURCE_DATASETS_CACHE_CANDIDATES=(
-    "$SOURCE_HF_DATASETS_CACHE"
-    "${SOURCE_HF_HOME:+$SOURCE_HF_HOME/datasets}"
-    "$SCRATCH/HF-cache/datasets"
-    "$HOME/.cache/huggingface/datasets"
-)
-for candidate in "${SOURCE_DATASETS_CACHE_CANDIDATES[@]}"; do
-    [[ -z "$candidate" ]] && continue
-    if [[ -d "$candidate/$PERSONAS_DATASET_CACHE_DIR" ]]; then
-        SOURCE_PERSONAS_DATASET_DIR="$candidate/$PERSONAS_DATASET_CACHE_DIR"
-        break
-    fi
-done
-
-if [[ -z "$SOURCE_PERSONAS_DATASET_DIR" ]]; then
-    echo "Could not find cached dataset directory $PERSONAS_DATASET_CACHE_DIR in any source datasets cache root." >&2
-    echo "Checked candidates:" >&2
-    for candidate in "${SOURCE_DATASETS_CACHE_CANDIDATES[@]}"; do
-        [[ -n "$candidate" ]] && echo "  - $candidate" >&2
-    done
-    exit 1
-fi
-
-LOCAL_PERSONAS_DATASET_DIR="$LOCAL_HF_DATASETS_CACHE/$PERSONAS_DATASET_CACHE_DIR"
-echo "Staging dataset cache for Tianyi-Lab/Personas into $LOCAL_PERSONAS_DATASET_DIR"
-mkdir -p "$LOCAL_PERSONAS_DATASET_DIR"
-rsync -a "$SOURCE_PERSONAS_DATASET_DIR/" "$LOCAL_PERSONAS_DATASET_DIR/"
 
 CMD=(
-    python -u "$LOCAL_REPO/src/main.py"
-    --survey_output "$LOCAL_SURVEY_OUTPUT"
+    python -u "$REPO_ROOT/src/main.py"
+    --survey_output "$SURVEY_OUTPUT"
     --array_id "${SLURM_ARRAY_TASK_ID}"
     --job_id "${SLURM_JOB_ID}"
     --question_number "$QUESTION_NUMBER"
-    --base_model "$RESOLVED_BASE_MODEL"
+    --base_model "$BASE_MODEL"
     --loras_path "$LORAS_PATH"
     --lora_name_template "$LORA_NAME_TEMPLATE"
     --num_loras "$NUM_LORAS"
@@ -266,10 +124,10 @@ CMD=(
     --num_news_agents "$NUM_NEWS_AGENTS"
     --proportion_adversarial_agents "$PROPORTION_ADVERSARIAL_AGENTS"
     --adversarial_strategy "$ADVERSARIAL_STRATEGY"
-    --adversarial_model "$RESOLVED_ADVERSARIAL_MODEL"
+    --adversarial_model "$ADVERSARIAL_MODEL"
     --graph_model "$GRAPH_MODEL"
-    --visualizer_output "$LOCAL_VISUALIZER_OUTPUT"
-    --metrics_output "$LOCAL_METRICS_OUTPUT"
+    --visualizer_output "$VISUALIZER_OUTPUT"
+    --metrics_output "$METRICS_OUTPUT"
 )
 
 if [[ "$CENTRALIZE_FLAG" == "on" ]]; then
@@ -285,14 +143,12 @@ echo "combo_index=${COMBO_INDEX}"
 echo "repeat_number=${REPEAT_NUMBER}"
 echo "model_profile=${MODEL_PROFILE}"
 echo "base_model=${BASE_MODEL}"
-echo "resolved_base_model=${RESOLVED_BASE_MODEL}"
 echo "loras_path=${LORAS_PATH}"
 echo "lora_name_template=${LORA_NAME_TEMPLATE}"
 echo "num_loras=${NUM_LORAS}"
 echo "lora_indices=${LORA_INDEX_SET}"
 echo "proportions_option=uniform"
 echo "adversarial_model=${ADVERSARIAL_MODEL}"
-echo "resolved_adversarial_model=${RESOLVED_ADVERSARIAL_MODEL}"
 echo "graph_model=${GRAPH_MODEL}"
 echo "homophily=off"
 echo "add_survey_to_context=${SURVEY_CONTEXT_FLAG}"
@@ -302,15 +158,14 @@ echo "num_agents=${NUM_AGENTS}"
 echo "num_news_agents=${NUM_NEWS_AGENTS}"
 echo "centralize_adversaries=${CENTRALIZE_FLAG}"
 echo "adversarial_strategy=${ADVERSARIAL_STRATEGY}"
-echo "local_repo=${LOCAL_REPO}"
-echo "local_hf_cache=${LOCAL_HF_HUB_CACHE}"
-echo "local_hf_datasets_cache=${LOCAL_HF_DATASETS_CACHE}"
-echo "source_personas_dataset_dir=${SOURCE_PERSONAS_DATASET_DIR}"
-echo "survey_output=${LOCAL_SURVEY_OUTPUT}"
-echo "visualizer_output=${LOCAL_VISUALIZER_OUTPUT}"
-echo "metrics_output=${LOCAL_METRICS_OUTPUT}"
-echo "final_output_dir=${FINAL_OUTPUT_DIR}"
+echo "repo_root=${REPO_ROOT}"
+echo "hf_hub_cache=${HF_HUB_CACHE}"
+echo "hf_datasets_cache=${HF_DATASETS_CACHE}"
+echo "unsloth_cache_dir=${UNSLOTH_CACHE_DIR}"
+echo "survey_output=${SURVEY_OUTPUT}"
+echo "visualizer_output=${VISUALIZER_OUTPUT}"
+echo "metrics_output=${METRICS_OUTPUT}"
 echo "=================================================="
 
-cd "$LOCAL_REPO"
+cd "$REPO_ROOT"
 "${CMD[@]}"
