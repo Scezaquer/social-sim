@@ -7,15 +7,16 @@ from pathlib import Path
 
 
 def last_line_contains_cancelled(file_path: Path) -> bool:
-	"""Return True if the file's last non-empty line contains 'CANCELLED'."""
+	"""Return True if 'metrics saved to' is absent from the file's last 50 lines."""
 	with file_path.open("r", encoding="utf-8", errors="replace") as f:
 		lines = f.read().splitlines()
 
 	if not lines:
 		return False
 
-	# Check the final line as requested; trim surrounding whitespace.
-	return not ("metrics saved to" in lines[-1].strip())
+	# Check the last 50 lines (or fewer if the file is shorter).
+	last_50 = lines[-50:]
+	return any("DUE TO PREEMPTION" in line.strip() for line in last_50)
 
 
 def find_cancelled_indices(base_dir: Path, start: int, end: int) -> list[int]:
