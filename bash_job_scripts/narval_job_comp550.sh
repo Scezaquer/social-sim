@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=ctb-liyue
 #SBATCH --job-name=Comp550BaseOnly
-#SBATCH --array=318,303,431,591,427,576,590,482,384
+#SBATCH --array=1-5
 #SBATCH --time=3:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
@@ -68,14 +68,19 @@ cleanup() {
 trap 'cleanup "$?"' EXIT
 
 # Fixed run settings requested.
-BASE_MODEL="Qwen/Qwen2.5-7B-Instruct"
+BASE_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"
+LORAS_PATH="$SCRATCH/marcelbinz"
+LORA_NAME_TEMPLATE="Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-{i}"
+NUM_LORAS=25
+LORA_INDEX_SET="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24"
+ADVERSARIAL_MODEL="Qwen/Qwen2.5-7B-Instruct"
 GRAPH_MODEL="powerlaw_cluster"
 NUM_NEWS_AGENTS="0"
 SURVEY_CONTEXT_FLAG="off"
 MODEL_PROFILE="base_only"
 
 # Parameter grid requested.
-QUESTIONS=(13 23 35)
+QUESTIONS=(25 28 29)
 PROPORTION_ADVERSARIES=(0 0.0625 0.125 0.25)
 NUM_AGENTS_CHOICES=(64 128 256)
 CENTRALIZE_CHOICES=(off on)
@@ -238,11 +243,16 @@ CMD=(
 	--job_id "${SLURM_JOB_ID}"
 	--question_number "$QUESTION_NUMBER"
 	--base_model "$RESOLVED_BASE_MODEL"
-	--base_only
+	--loras_path "$LORAS_PATH"
+	--lora_name_template "$LORA_NAME_TEMPLATE"
+	--num_loras "$NUM_LORAS"
+	--lora_indices "${LORA_INDEX_SET}"
+	--proportions_option "uniform"
 	--num_agents "$NUM_AGENTS"
 	--num_news_agents "$NUM_NEWS_AGENTS"
 	--proportion_adversarial_agents "$PROPORTION_ADVERSARIAL_AGENTS"
 	--adversarial_strategy "$ADVERSARIAL_STRATEGY"
+	--adversarial_model "$ADVERSARIAL_MODEL"
 	--graph_model "$GRAPH_MODEL"
 	--visualizer_output "$LOCAL_VISUALIZER_OUTPUT"
 	--metrics_output "$LOCAL_METRICS_OUTPUT"

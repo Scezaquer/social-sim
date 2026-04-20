@@ -16,7 +16,7 @@ except ImportError as e:
 
 from transformers import StoppingCriteria, StoppingCriteriaList
 
-DEFAULT_TEMPERATURE = 1.5
+DEFAULT_TEMPERATURE = 1.0
 DEFAULT_TOP_P = 0.95
 DEFAULT_TOP_K = 64
 DEFAULT_TERMINATORS = ()
@@ -191,7 +191,7 @@ class UnslothLanguageModel:
       responses: Sequence[str],
       *,
       seed: int | None = None,
-      adapter_name: str | None = None,
+      adapter_name: str | None = None
   ) -> tuple[int, str, Mapping[str, Any]]:
       
     if adapter_name:
