@@ -16,13 +16,13 @@ def last_line_contains_cancelled(file_path: Path) -> bool:
 
 	# Check the last 50 lines (or fewer if the file is shorter).
 	last_50 = lines[-50:]
-	return any("DUE TO PREEMPTION" in line.strip() for line in last_50)
+	return any("CANCELLED" in line.strip() for line in last_50)
 
 
 def find_cancelled_indices(base_dir: Path, start: int, end: int) -> list[int]:
 	cancelled = []
 	for i in range(start, end + 1):
-		file_name = f"slurm-59453213_{i}.out"
+		file_name = f"slurm-9312429_{i}.out"
 		file_path = base_dir / file_name
 		if file_path.is_file() and last_line_contains_cancelled(file_path):
 			cancelled.append(i)
@@ -32,7 +32,7 @@ def find_cancelled_indices(base_dir: Path, start: int, end: int) -> list[int]:
 def main() -> None:
 	parser = argparse.ArgumentParser(
 		description=(
-			"Find i values where slurm-59453213_{i}.out has 'out of range' in the last line."
+			"Find i values where slurm-9312429_{i}.out has 'CANCELLED' in the last line."
 		)
 	)
 	parser.add_argument(
