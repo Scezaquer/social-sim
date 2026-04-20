@@ -220,6 +220,7 @@ if __name__ == "__main__":
         default="false_information",
         help="Strategy of adversarial agents.",
     )
+    parser.add_argument("--adversarial_model", type=str, default=None, help="Optional separate model for adversarial agents (if not provided, uses same model as normal agents)")
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
     parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
     parser.add_argument("--base_only", action="store_true", help="Use only the base model for all agents, ignoring any LoRAs")
@@ -261,6 +262,12 @@ if __name__ == "__main__":
 
     base_model = UnslothLanguageModel(
         model_name=VLLM_MODEL_NAME,
+        load_in_4bit=True,
+        local_files_only=True,
+    )
+
+    adversarial_model = base_model if args.adversarial_model is None else UnslothLanguageModel(
+        model_name=args.adversarial_model,
         load_in_4bit=True,
         local_files_only=True,
     )
@@ -318,7 +325,7 @@ if __name__ == "__main__":
             proportions = np.array([1.0])
             print("Using base model only.")
         else:
-            if loaded_lora_indices and len(default_proportions) >= (max(loaded_lora_indices) + 1):
+            if loaded_lora_indices and len(default_proportions) >= (max(loaded_lora_indices) + 1) and args.proportions_option != "uniform":
                 selected_defaults = default_proportions[loaded_lora_indices]
                 proportions = selected_defaults / selected_defaults.sum()
                 print("Using built-in default proportions for selected LoRA indices.")
@@ -334,7 +341,7 @@ if __name__ == "__main__":
 
     model_counts = {"Model_"+str(i): 0 for i in range(len(models))}
 
-    if args.base_only:
+    if args.base_only or args.proportion_adversarial_agents != 0:
         ds = load_dataset("Tianyi-Lab/Personas") # https://arxiv.org/abs/2503.16527
 
 
@@ -394,37 +401,35 @@ if __name__ == "__main__":
     
     for i in range(number_adversarial):
         model_id = np.random.choice(len(models), p=proportions)
-        model = models[model_id]
-        model_counts["Model_"+str(model_id)] += 1
         prompt = ""
         name = get_unique_name(attributed_names)
         entity_id = len(entities)
-        if args.base_only:
-            persona = random.choice(ds['train']['meta_persona'])
-            name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
-            prompt = """You are simulating a real human user on a social media platform.
+        persona = random.choice(ds['train']['meta_persona'])
+        name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
+        prompt = """You are simulating a real human user on a social media platform.
 
-            Task:
-            Write exactly ONE social media post OR reply (not both).
+        Task:
+        Write exactly ONE social media post OR reply (not both).
 
-            Rules:
-            - Do NOT ask questions to the user.
-            - Do NOT ask for clarification.
-            - Do NOT mention being an AI, assistant, or chatbot.
-            - Do NOT mention instructions, prompts, or personas.
-            - Do NOT include any meta-commentary.
-            - Do NOT include quotation marks around the post.
-            - Output ONLY the post text. No extra text.
+        Rules:
+        - Do NOT ask questions to the user.
+        - Do NOT ask for clarification.
+        - Do NOT mention being an AI, assistant, or chatbot.
+        - Do NOT mention instructions, prompts, or personas.
+        - Do NOT include any meta-commentary.
+        - Do NOT include quotation marks around the post.
+        - Output ONLY the post text. No extra text.
 
-            Behavior:
-            - The post should feel natural, casual, and human.
-            - It can express an opinion, reaction, or personal experience.
-            - If it is a reply, assume you are responding to a generic post (do not ask what it is).
+        Behavior:
+        - The post should feel natural, casual, and human.
+        - It can express an opinion, reaction, or personal experience.
+        - If it is a reply, assume you are responding to a generic post (do not ask what it is).
 
-            Persona:""" + persona + ", Name: " + name
+        Persona:""" + persona + ", Name: " + name
+
         user = AdversarialUser(
             name=name, 
-            model=model, 
+            model=adversarial_model,
             model_id=model_id, 
             question=question,
             target_option = options[0],
