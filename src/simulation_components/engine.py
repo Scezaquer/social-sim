@@ -534,6 +534,9 @@ class SimEngine:
                         'results': results
                     })
                     print(f"--- Survey Completed ---\n")
+                    print(f"Survey results at step {steps}:")
+                    for name, response in results.items():
+                        print(f"  {name}: {response}")
                     if steps == max_steps:
                         break
 
