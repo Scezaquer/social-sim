@@ -93,11 +93,11 @@ class UnslothLanguageModel:
         print("Using custom ChatML template.")
         self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
 
-    @staticmethod
-    def _get_amp_dtype() -> torch.dtype:
-        if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-            return torch.bfloat16
-        return torch.float16
+  @staticmethod
+  def _get_amp_dtype() -> torch.dtype:
+    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
+      return torch.bfloat16
+    return torch.float16
 
   def finalize_inference(self):
     """Call after loading all LoRA adapters to optimize for inference."""
