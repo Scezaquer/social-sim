@@ -341,7 +341,7 @@ if __name__ == "__main__":
 
     model_counts = {"Model_"+str(i): 0 for i in range(len(models))}
 
-    if args.base_only:
+    if args.base_only or args.proportion_adversarial_agents != 0:
         ds = load_dataset("Tianyi-Lab/Personas") # https://arxiv.org/abs/2503.16527
 
 
