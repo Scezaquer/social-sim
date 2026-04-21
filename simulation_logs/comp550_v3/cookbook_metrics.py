@@ -117,24 +117,24 @@ def load_all_runs():
             return statistics.mean(vals) if vals else None
 
         runs.append({
-            "question":          rp["question_number"],
-            "strategy":          rp["adversarial_strategy"],
-            "centralize":        rp["centralize_adversaries"],
-            "proportion":        rp["proportion_adversarial_agents"],
-            "num_agents":        rp["num_agents"],
-            "osr":               herd.get("mean_opinion_shift_rate"), # Can also look at osr between transitions.
-            "ncc":               herd.get("net_consensus_change"), 
+            "question": rp["question_number"],
+            "strategy": rp["adversarial_strategy"],
+            "centralize": rp["centralize_adversaries"],
+            "proportion": rp["proportion_adversarial_agents"],
+            "num_agents": rp["num_agents"],
+            "osr": herd.get("mean_opinion_shift_rate"), # Can also look at osr between transitions.
+            "ncc": herd.get("net_consensus_change"), 
             "initial_consensus": herd.get("initial_consensus"),
-            "final_consensus":   herd.get("final_consensus"),
-            "mfr":               herd.get("mean_current_majority_follow_rate"), # Can also look at mfr between transitions.
-            "nasr":              herd.get("mean_neighbor_alignment_shift_rate"), # Can also look at nasr between transitions.
-            "assortativity":     echo.get("network_assortativity"), # Can also look at assortativity for the surveys.
-            "u_osr":             user_herd.get("mean_opinion_shift_rate") if isinstance(user_herd, dict) else None,
-            "u_ncc":             user_herd.get("net_consensus_change") if isinstance(user_herd, dict) else None,
+            "final_consensus": herd.get("final_consensus"),
+            "mfr": herd.get("mean_current_majority_follow_rate"), # Can also look at mfr between transitions.
+            "nasr": herd.get("mean_neighbor_alignment_shift_rate"), # Can also look at nasr between transitions.
+            "assortativity": echo.get("network_assortativity"), # Can also look at assortativity for the surveys.
+            "u_osr": user_herd.get("mean_opinion_shift_rate") if isinstance(user_herd, dict) else None,
+            "u_ncc": user_herd.get("net_consensus_change") if isinstance(user_herd, dict) else None,
             "u_initial_consensus": user_herd.get("initial_consensus") if isinstance(user_herd, dict) else None,
             "u_final_consensus": user_herd.get("final_consensus") if isinstance(user_herd, dict) else None,
-            "u_mfr":             user_herd.get("mean_current_majority_follow_rate") if isinstance(user_herd, dict) else None,
-            "u_nasr":            user_herd.get("mean_neighbor_alignment_shift_rate") if isinstance(user_herd, dict) else None,
+            "u_mfr": user_herd.get("mean_current_majority_follow_rate") if isinstance(user_herd, dict) else None,
+            "u_nasr": user_herd.get("mean_neighbor_alignment_shift_rate") if isinstance(user_herd, dict) else None,
             "u_initial_diversity": user_herd.get("initial_diversity") if isinstance(user_herd, dict) else None,
             "u_final_diversity": user_herd.get("final_diversity") if isinstance(user_herd, dict) else None,
             "u_mean_consensus_gain": user_herd.get("mean_consensus_gain") if isinstance(user_herd, dict) else None,
