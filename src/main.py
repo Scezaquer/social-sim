@@ -406,26 +406,6 @@ if __name__ == "__main__":
         entity_id = len(entities)
         persona = random.choice(ds['train']['meta_persona'])
         name = get_unique_name(attributed_names, json.loads(persona).get('SEX').lower())
-        prompt = """You are simulating a real human user on a social media platform.
-
-        Task:
-        Write exactly ONE social media post OR reply (not both).
-
-        Rules:
-        - Do NOT ask questions to the user.
-        - Do NOT ask for clarification.
-        - Do NOT mention being an AI, assistant, or chatbot.
-        - Do NOT mention instructions, prompts, or personas.
-        - Do NOT include any meta-commentary.
-        - Do NOT include quotation marks around the post.
-        - Output ONLY the post text. No extra text.
-
-        Behavior:
-        - The post should feel natural, casual, and human.
-        - It can express an opinion, reaction, or personal experience.
-        - If it is a reply, assume you are responding to a generic post (do not ask what it is).
-
-        Persona:""" + persona + ", Name: " + name
 
         user = AdversarialUser(
             name=name, 
@@ -436,7 +416,10 @@ if __name__ == "__main__":
             survey_options = options,
             add_survey_to_context=args.add_survey_to_context, 
             base_system_prompt=prompt, 
-            adversarial_strategy=STRATEGY)
+            adversarial_strategy=STRATEGY,
+            persona=persona,
+            temperature=2.0
+        )
         adversarial_agents_metadata.append({
             "entity_id": entity_id,
             "name": user.name,
