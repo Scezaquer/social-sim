@@ -108,18 +108,18 @@ def load_all_runs():
         echo = d["behavioral_metrics"]["echo_chamber_metrics"]
 
         runs.append({
-            "question":          rp["question_number"],
-            "strategy":          rp["adversarial_strategy"],
-            "centralize":        rp["centralize_adversaries"],
-            "proportion":        rp["proportion_adversarial_agents"],
-            "num_agents":        rp["num_agents"],
-            "osr":               herd.get("mean_opinion_shift_rate"), # Can also look at osr between transitions.
-            "ncc":               herd.get("net_consensus_change"), 
+            "question": rp["question_number"],
+            "strategy": rp["adversarial_strategy"],
+            "centralize": rp["centralize_adversaries"],
+            "proportion": rp["proportion_adversarial_agents"],
+            "num_agents": rp["num_agents"],
+            "osr": herd.get("mean_opinion_shift_rate"), # Can also look at osr between transitions.
+            "ncc": herd.get("net_consensus_change"), 
             "initial_consensus": herd.get("initial_consensus"),
-            "final_consensus":   herd.get("final_consensus"),
-            "mfr":               herd.get("mean_current_majority_follow_rate"), # Can also look at mfr between transitions.
-            "nasr":              herd.get("mean_neighbor_alignment_shift_rate"), # Can also look at nasr between transitions.
-            "assortativity":     echo.get("network_assortativity"), # Can also look at assortativity for the surveys.
+            "final_consensus": herd.get("final_consensus"),
+            "mfr": herd.get("mean_current_majority_follow_rate"), # Can also look at mfr between transitions.
+            "nasr": herd.get("mean_neighbor_alignment_shift_rate"), # Can also look at nasr between transitions.
+            "assortativity": echo.get("network_assortativity"), # Can also look at assortativity for the surveys.
         })
 
     return runs
