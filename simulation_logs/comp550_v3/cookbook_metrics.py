@@ -93,9 +93,59 @@ def sub(title: str) -> None:
 # End of copied helpers
 
 
+def load_option0_by_question() -> Dict[int, str]:
+    """Map question_number -> option-0 label from divisive_questions_probabilities.json."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    questions_path = os.path.join(script_dir, "..", "..", "divisive_questions_probabilities.json")
+    with open(questions_path) as fh:
+        questions = json.load(fh)
+
+    mapping: Dict[int, str] = {}
+    for q in questions:
+        q_num = q.get("number")
+        distributions = q.get("distributions")
+        if not isinstance(q_num, int) or not isinstance(distributions, dict) or not distributions:
+            continue
+
+        first_model_dist = next(iter(distributions.values()), None)
+        if not isinstance(first_model_dist, dict) or not first_model_dist:
+            continue
+
+        option0_label = next(iter(first_model_dist.keys()), None)
+        if isinstance(option0_label, str):
+            mapping[q_num] = option0_label
+
+    return mapping
+
+
+def option_share(entry: Dict[str, Any], option_label: Optional[str]) -> Optional[float]:
+    """Return proportion of labeled users selecting option_label for one survey entry."""
+    if not isinstance(option_label, str):
+        return None
+
+    dist = entry.get("option_distribution") if isinstance(entry, dict) else None
+    if not isinstance(dist, dict):
+        return None
+
+    count = dist.get(option_label, 0)
+    if not isinstance(count, (int, float)):
+        return None
+
+    labeled = entry.get("labeled_user_count") if isinstance(entry, dict) else None
+    if isinstance(labeled, (int, float)) and labeled > 0:
+        denom = float(labeled)
+    else:
+        denom = float(sum(v for v in dist.values() if isinstance(v, (int, float))))
+
+    if denom <= 0:
+        return None
+    return float(count) / denom
+
+
 
 def load_all_runs():
     """Load all 720 JSONs."""
+    option0_by_question = load_option0_by_question()
     files = [f for f in os.listdir(".") if f.startswith("visualizer_comp550_") and f.endswith(".json")]
     runs = []
 
@@ -108,8 +158,27 @@ def load_all_runs():
         herd = bm.get("herd_effect_metrics", {})
         echo = bm.get("echo_chamber_metrics", {})
         user_herd = bm.get("user_only_herd_effect_metrics", {})
+        question_num = rp["question_number"]
+        option0_label = option0_by_question.get(question_num)
 
         user_transitions = user_herd.get("transitions", []) if isinstance(user_herd, dict) else []
+        echo_by_survey = echo.get("by_survey", []) if isinstance(echo, dict) else []
+
+        option0_props = []
+        for s in echo_by_survey:
+            prop = option_share(s, option0_label)
+            if prop is not None:
+                option0_props.append(prop)
+
+        # Fall back to final echo snapshot if no by_survey entries are available.
+        final_option0_prop = option0_props[-1] if option0_props else option_share(echo, option0_label)
+        initial_option0_prop = option0_props[0] if option0_props else None
+        mean_option0_prop = statistics.mean(option0_props) if option0_props else final_option0_prop
+        net_option0_prop_change = (
+            (final_option0_prop - initial_option0_prop)
+            if final_option0_prop is not None and initial_option0_prop is not None
+            else None
+        )
 
         def mean_transition_value(key: str) -> Optional[float]:
             vals = [t.get(key) for t in user_transitions if isinstance(t, dict)]
@@ -117,7 +186,7 @@ def load_all_runs():
             return statistics.mean(vals) if vals else None
 
         runs.append({
-            "question": rp["question_number"],
+            "question": question_num,
             "strategy": rp["adversarial_strategy"],
             "centralize": rp["centralize_adversaries"],
             "proportion": rp["proportion_adversarial_agents"],
@@ -140,6 +209,10 @@ def load_all_runs():
             "u_mean_consensus_gain": user_herd.get("mean_consensus_gain") if isinstance(user_herd, dict) else None,
             "u_mean_changed_users": mean_transition_value("changed_users"),
             "u_mean_shared_users": mean_transition_value("shared_users"),
+            "u_option0_initial_prop": initial_option0_prop,
+            "u_option0_final_prop": final_option0_prop,
+            "u_option0_mean_prop": mean_option0_prop,
+            "u_option0_net_prop_change": net_option0_prop_change,
         })
 
     return runs
@@ -211,6 +284,10 @@ def main():
         ("u_final_diversity", "User-only Final Diversity"),
         ("u_mean_changed_users", "User-only Mean Changed Users per Transition"),
         ("u_mean_shared_users", "User-only Mean Shared Users per Transition"),
+        ("u_option0_initial_prop", "User-only Initial Proportion Voting Option 0"),
+        ("u_option0_final_prop", "User-only Final Proportion Voting Option 0"),
+        ("u_option0_mean_prop", "User-only Mean Proportion Voting Option 0"),
+        ("u_option0_net_prop_change", "User-only Net Proportion Change for Option 0"),
     ]
 
     ivs = [ # iv_key, iv_label, levels
