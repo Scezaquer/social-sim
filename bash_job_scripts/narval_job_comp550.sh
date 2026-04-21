@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=ctb-liyue
 #SBATCH --job-name=Comp550MinitaurLoras
-#SBATCH --array=1-5
+#SBATCH --array=1-720
 #SBATCH --time=3:00:00
 #SBATCH --mem-per-cpu=24G
 #SBATCH --gpus-per-node=a100:1
