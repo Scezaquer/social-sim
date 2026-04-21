@@ -1,0 +1,957 @@
+Loading JSON files...
+Loaded 720 runs.
+
+
+========================================================================
+  Opinion Shift Rate (OSR)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.288224	0.053077
+28	240	0.285791	0.047443
+29	240	0.037796	0.023340
+
+  eta squared = 0.881068
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.191284	0.109993
+red_teaming	360	0.216591	0.137836
+
+  eta squared = 0.010221
+
+  Welch t = -2.7229, p = 0.006471 **
+  Cohen's d = -0.2030
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.200966	0.123598
+True	360	0.206909	0.126980
+
+  eta squared = 0.000564
+
+  Welch t = -0.6363, p = 0.524561 (ns)
+  Cohen's d = -0.0474
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.201487	0.103660
+0.0625	180	0.218748	0.135563
+0.125	180	0.202682	0.132053
+0.25	180	0.192832	0.126883
+
+  Pearson r = -0.0434, p = 0.244660 (ns), n = 720
+
+  eta squared = 0.005590
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.196133	0.127809
+128	240	0.214883	0.126593
+256	240	0.200796	0.121000
+
+  Pearson r = 0.0032, p = 0.930613 (ns), n = 720
+
+  eta squared = 0.004055
+
+========================================================================
+  Net Consensus Change (NCC)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.139958	0.136529
+28	240	0.111230	0.147491
+29	240	-0.022917	0.023727
+
+  eta squared = 0.270405
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.121734	0.152076
+red_teaming	360	0.030447	0.100333
+
+  eta squared = 0.111802
+
+  Welch t = 9.5067, p = 0.000000 ***
+  Cohen's d = 0.7086
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.079666	0.135510
+True	360	0.072515	0.137781
+
+  eta squared = 0.000686
+
+  Welch t = 0.7021, p = 0.482646 (ns)
+  Cohen's d = 0.0523
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.017817	0.078597
+0.0625	180	0.101541	0.138031
+0.125	180	0.114800	0.148741
+0.25	180	0.070204	0.148294
+
+  Pearson r = 0.0982, p = 0.008175 **, n = 720
+
+  eta squared = 0.074818
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.092708	0.155729
+128	240	0.063932	0.121511
+256	240	0.071631	0.129128
+
+  Pearson r = -0.0500, p = 0.179790 (ns), n = 720
+
+  eta squared = 0.007940
+
+========================================================================
+  Initial Consensus
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.563477	0.045316
+28	240	0.581169	0.049801
+29	240	1.000000	0.000000
+
+  eta squared = 0.964341
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.701248	0.214002
+red_teaming	360	0.728516	0.196143
+
+  eta squared = 0.004404
+
+  Welch t = -1.7822, p = 0.074709 (ns)
+  Cohen's d = -0.1328
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.714714	0.205875
+True	360	0.715050	0.205565
+
+  eta squared = 0.000001
+
+  Welch t = -0.0219, p = 0.982498 (ns)
+  Cohen's d = -0.0016
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.697287	0.216263
+0.0625	180	0.700174	0.214419
+0.125	180	0.711589	0.207400
+0.25	180	0.750477	0.179395
+
+  Pearson r = 0.0996, p = 0.007296 **, n = 720
+
+  eta squared = 0.010685
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.718555	0.204533
+128	240	0.707682	0.209974
+256	240	0.718408	0.202827
+
+  Pearson r = 0.0044, p = 0.906205 (ns), n = 720
+
+  eta squared = 0.000614
+
+========================================================================
+  Final Consensus
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.703434	0.134802
+28	240	0.692399	0.134542
+29	240	0.977083	0.023727
+
+  eta squared = 0.586441
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.822982	0.155154
+red_teaming	360	0.758963	0.182126
+
+  eta squared = 0.034655
+
+  Welch t = 5.0769, p = 0.000000 ***
+  Cohen's d = 0.3784
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.794379	0.168177
+True	360	0.787565	0.176042
+
+  eta squared = 0.000393
+
+  Welch t = 0.5310, p = 0.595384 (ns)
+  Cohen's d = 0.0396
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.715104	0.187285
+0.0625	180	0.801714	0.160614
+0.125	180	0.826389	0.151179
+0.25	180	0.820681	0.164759
+
+  Pearson r = 0.1970, p = 0.000000 ***, n = 720
+
+  eta squared = 0.067715
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.811263	0.170186
+128	240	0.771615	0.177889
+256	240	0.790039	0.166349
+
+  Pearson r = -0.0344, p = 0.355821 (ns), n = 720
+
+  eta squared = 0.008876
+
+========================================================================
+  Majority Follow Rate (MFR)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.539992	0.036813
+28	240	0.530296	0.031147
+29	240	0.392238	0.105782
+
+  eta squared = 0.503744
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.490251	0.073517
+red_teaming	360	0.484766	0.112743
+
+  eta squared = 0.000832
+
+  Welch t = 0.7732, p = 0.439418 (ns)
+  Cohen's d = 0.0576
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.482967	0.099984
+True	360	0.492051	0.089959
+
+  eta squared = 0.002282
+
+  Welch t = -1.2814, p = 0.200038 (ns)
+  Cohen's d = -0.0955
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.504356	0.065238
+0.0625	180	0.483645	0.089804
+0.125	180	0.478928	0.104742
+0.25	180	0.483106	0.112592
+
+  Pearson r = -0.0687, p = 0.065064 (ns), n = 720
+
+  eta squared = 0.010834
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.469932	0.137667
+128	240	0.494832	0.074550
+256	240	0.497762	0.047482
+
+  Pearson r = 0.1071, p = 0.003913 **, n = 720
+
+  eta squared = 0.017246
+
+========================================================================
+  Neighbor Alignment Shift Rate (NASR)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.107580	0.016743
+28	240	0.104652	0.016735
+29	240	0.015610	0.009653
+
+  eta squared = 0.893583
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.075432	0.042420
+red_teaming	360	0.076463	0.047840
+
+  eta squared = 0.000130
+
+  Welch t = -0.3059, p = 0.759686 (ns)
+  Cohen's d = -0.0228
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.074357	0.044499
+True	360	0.077538	0.045863
+
+  eta squared = 0.001241
+
+  Welch t = -0.9446, p = 0.344858 (ns)
+  Cohen's d = -0.0704
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.075237	0.037863
+0.0625	180	0.081858	0.048883
+0.125	180	0.075681	0.048174
+0.25	180	0.071013	0.044677
+
+  Pearson r = -0.0537, p = 0.149237 (ns), n = 720
+
+  eta squared = 0.007340
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.074069	0.046385
+128	240	0.079902	0.045608
+256	240	0.073870	0.043432
+
+  Pearson r = -0.0135, p = 0.718152 (ns), n = 720
+
+  eta squared = 0.003840
+
+========================================================================
+  Network Assortativity
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	-0.006962	0.030292
+28	240	-0.004030	0.031293
+29	240	-0.003004	0.017391
+
+  eta squared = 0.003838
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	-0.005994	0.025218
+red_teaming	360	-0.003336	0.028815
+
+  eta squared = 0.002409
+
+  Welch t = -1.3168, p = 0.187908 (ns)
+  Cohen's d = -0.0981
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	-0.005788	0.023585
+True	360	-0.003543	0.030183
+
+  eta squared = 0.001720
+
+  Welch t = -1.1121, p = 0.266089 (ns)
+  Cohen's d = -0.0829
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	-0.003701	0.018979
+0.0625	180	-0.004441	0.025920
+0.125	180	-0.007170	0.026430
+0.25	180	-0.003349	0.034760
+
+  Pearson r = 0.0030, p = 0.935910 (ns), n = 720
+
+  eta squared = 0.003066
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	-0.009312	0.030503
+128	240	-0.001679	0.027463
+256	240	-0.003005	0.022130
+
+  Pearson r = 0.0786, p = 0.034517 *, n = 720
+
+  eta squared = 0.015129
+
+========================================================================
+  User-only Opinion Shift Rate (OSR)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.274916	0.062025
+28	240	0.274956	0.046607
+29	240	0.031863	0.023111
+
+  eta squared = 0.857869
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.178817	0.110422
+red_teaming	360	0.209007	0.134335
+
+  eta squared = 0.014888
+
+  Welch t = -3.2941, p = 0.000987 ***
+  Cohen's d = -0.2455
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.189501	0.122481
+True	360	0.198322	0.125121
+
+  eta squared = 0.001271
+
+  Welch t = -0.9558, p = 0.339154 (ns)
+  Cohen's d = -0.0712
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.201487	0.103660
+0.0625	180	0.211861	0.133525
+0.125	180	0.188743	0.128676
+0.25	180	0.173556	0.124925
+
+  Pearson r = -0.1008, p = 0.006606 **, n = 720
+
+  eta squared = 0.013404
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.187089	0.127745
+128	240	0.204305	0.124249
+256	240	0.190341	0.119094
+
+  Pearson r = -0.0007, p = 0.985308 (ns), n = 720
+
+  eta squared = 0.003644
+
+========================================================================
+  User-only Net Consensus Change (NCC)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.200148	0.148914
+28	240	0.150028	0.137856
+29	240	-0.019255	0.020804
+
+  eta squared = 0.389476
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.140128	0.167756
+red_teaming	360	0.080486	0.124298
+
+  eta squared = 0.039306
+
+  Welch t = 5.4200, p = 0.000000 ***
+  Cohen's d = 0.4040
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.113713	0.152483
+True	360	0.106901	0.148665
+
+  eta squared = 0.000513
+
+  Welch t = 0.6069, p = 0.543905 (ns)
+  Cohen's d = 0.0452
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.017817	0.078597
+0.0625	180	0.116620	0.141107
+0.125	180	0.151959	0.155858
+0.25	180	0.154832	0.168058
+
+  Pearson r = 0.3009, p = 0.000000 ***, n = 720
+
+  eta squared = 0.136042
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.121664	0.162619
+128	240	0.104250	0.149732
+256	240	0.105008	0.138200
+
+  Pearson r = -0.0390, p = 0.295506 (ns), n = 720
+
+  eta squared = 0.002854
+
+========================================================================
+  User-only Initial Consensus
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.526380	0.020109
+28	240	0.561017	0.031910
+29	240	1.000000	0.000000
+
+  eta squared = 0.989940
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.695564	0.217129
+red_teaming	360	0.696034	0.216793
+
+  eta squared = 0.000001
+
+  Welch t = -0.0291, p = 0.976789 (ns)
+  Cohen's d = -0.0022
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.695970	0.216862
+True	360	0.695627	0.217061
+
+  eta squared = 0.000001
+
+  Welch t = 0.0212, p = 0.983068 (ns)
+  Cohen's d = 0.0016
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.697287	0.216263
+0.0625	180	0.698333	0.215252
+0.125	180	0.696081	0.217251
+0.25	180	0.691493	0.220195
+
+  Pearson r = -0.0110, p = 0.767794 (ns), n = 720
+
+  eta squared = 0.000145
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.703068	0.213340
+128	240	0.679964	0.226919
+256	240	0.704364	0.209830
+
+  Pearson r = 0.0122, p = 0.744427 (ns), n = 720
+
+  eta squared = 0.002677
+
+========================================================================
+  User-only Final Consensus
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.726527	0.147147
+28	240	0.711045	0.136106
+29	240	0.980745	0.020804
+
+  eta squared = 0.531444
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.835692	0.155159
+red_teaming	360	0.776520	0.178520
+
+  eta squared = 0.030425
+
+  Welch t = 4.7466, p = 0.000002 ***
+  Cohen's d = 0.3538
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.809684	0.167634
+True	360	0.802528	0.171967
+
+  eta squared = 0.000445
+
+  Welch t = 0.5653, p = 0.571862 (ns)
+  Cohen's d = 0.0421
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.715104	0.187285
+0.0625	180	0.814954	0.155959
+0.125	180	0.848041	0.142156
+0.25	180	0.846325	0.155925
+
+  Pearson r = 0.2527, p = 0.000000 ***, n = 720
+
+  eta squared = 0.101980
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.824732	0.169961
+128	240	0.784214	0.176795
+256	240	0.809372	0.160269
+
+  Pearson r = -0.0191, p = 0.609559 (ns), n = 720
+
+  eta squared = 0.009696
+
+========================================================================
+  User-only Majority Follow Rate (MFR)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.539740	0.036791
+28	240	0.528833	0.029613
+29	240	0.368283	0.121751
+
+  eta squared = 0.520443
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.481697	0.100410
+red_teaming	360	0.476206	0.116523
+
+  eta squared = 0.000638
+
+  Welch t = 0.6773, p = 0.498241 (ns)
+  Cohen's d = 0.0505
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.473321	0.117237
+True	360	0.484583	0.099333
+
+  eta squared = 0.002686
+
+  Welch t = -1.3906, p = 0.164344 (ns)
+  Cohen's d = -0.1036
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.504968	0.066522
+0.0625	180	0.480852	0.101640
+0.125	180	0.473890	0.118317
+0.25	180	0.456098	0.132258
+
+  Pearson r = -0.1550, p = 0.000026 ***, n = 720
+
+  eta squared = 0.026015
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.455531	0.155141
+128	240	0.488330	0.085299
+256	240	0.492993	0.058140
+
+  Pearson r = 0.1267, p = 0.000621 ***, n = 720
+
+  eta squared = 0.023540
+
+========================================================================
+  User-only Neighbor Alignment Shift Rate (NASR)
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.101743	0.018865
+28	240	0.099588	0.016254
+29	240	0.013013	0.009570
+
+  eta squared = 0.878503
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.069562	0.041814
+red_teaming	360	0.073334	0.046303
+
+  eta squared = 0.001830
+
+  Welch t = -1.1473, p = 0.251246 (ns)
+  Cohen's d = -0.0855
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.070544	0.044315
+True	360	0.072351	0.043978
+
+  eta squared = 0.000420
+
+  Welch t = -0.5491, p = 0.582908 (ns)
+  Cohen's d = -0.0409
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.075237	0.037863
+0.0625	180	0.078498	0.047620
+0.125	180	0.069132	0.046039
+0.25	180	0.062925	0.043093
+
+  Pearson r = -0.1214, p = 0.001047 **, n = 720
+
+  eta squared = 0.018265
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.069937	0.045796
+128	240	0.075244	0.043917
+256	240	0.069163	0.042537
+
+  Pearson r = -0.0185, p = 0.619223 (ns), n = 720
+
+  eta squared = 0.003757
+
+========================================================================
+  User-only Mean Consensus Gain
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.020015	0.014891
+28	240	0.015003	0.013786
+29	240	-0.001925	0.002080
+
+  eta squared = 0.389476
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.014013	0.016776
+red_teaming	360	0.008049	0.012430
+
+  eta squared = 0.039306
+
+  Welch t = 5.4200, p = 0.000000 ***
+  Cohen's d = 0.4040
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.011371	0.015248
+True	360	0.010690	0.014866
+
+  eta squared = 0.000513
+
+  Welch t = 0.6069, p = 0.543905 (ns)
+  Cohen's d = 0.0452
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.001782	0.007860
+0.0625	180	0.011662	0.014111
+0.125	180	0.015196	0.015586
+0.25	180	0.015483	0.016806
+
+  Pearson r = 0.3009, p = 0.000000 ***, n = 720
+
+  eta squared = 0.136042
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.012166	0.016262
+128	240	0.010425	0.014973
+256	240	0.010501	0.013820
+
+  Pearson r = -0.0390, p = 0.295506 (ns), n = 720
+
+  eta squared = 0.002854
+
+========================================================================
+  User-only Initial Diversity
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.996824	0.004240
+28	240	0.986257	0.011609
+29	240	0.000000	0.000000
+
+  eta squared = 0.999768
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.661083	0.468180
+red_teaming	360	0.660971	0.468102
+
+  eta squared = 0.000000
+
+  Welch t = 0.0032, p = 0.997438 (ns)
+  Cohen's d = 0.0002
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.660957	0.468093
+True	360	0.661097	0.468190
+
+  eta squared = 0.000000
+
+  Welch t = -0.0040, p = 0.996792 (ns)
+  Cohen's d = -0.0003
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.660586	0.468465
+0.0625	180	0.660642	0.468513
+0.125	180	0.660718	0.468593
+0.25	180	0.662162	0.469605
+
+  Pearson r = 0.0013, p = 0.972670 (ns), n = 720
+
+  eta squared = 0.000002
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.657290	0.465898
+128	240	0.665710	0.471713
+256	240	0.660080	0.467733
+
+  Pearson r = 0.0011, p = 0.977474 (ns), n = 720
+
+  eta squared = 0.000056
+
+========================================================================
+  User-only Final Diversity
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	0.760641	0.244157
+28	240	0.796253	0.216945
+29	240	0.121182	0.109890
+
+  eta squared = 0.709360
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	0.513395	0.339986
+red_teaming	360	0.605323	0.390113
+
+  eta squared = 0.015577
+
+  Welch t = -3.3706, p = 0.000750 ***
+  Cohen's d = -0.2512
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	0.554536	0.366192
+True	360	0.564181	0.371312
+
+  eta squared = 0.000171
+
+  Welch t = -0.3509, p = 0.725653 (ns)
+  Cohen's d = -0.0262
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	0.709218	0.364390
+0.0625	180	0.561021	0.351722
+0.125	180	0.491105	0.350903
+0.25	180	0.476092	0.362887
+
+  Pearson r = -0.2148, p = 0.000000 ***, n = 720
+
+  eta squared = 0.062767
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	0.511558	0.375675
+128	240	0.599904	0.366049
+256	240	0.566614	0.359822
+
+  Pearson r = 0.0452, p = 0.225156 (ns), n = 720
+
+  eta squared = 0.009785
+
+========================================================================
+  User-only Mean Changed Users per Transition
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	36.780417	21.397116
+28	240	36.540417	20.617379
+29	240	4.520417	4.104039
+
+  eta squared = 0.434585
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	24.500278	22.069411
+red_teaming	360	27.393889	23.835792
+
+  eta squared = 0.003963
+
+  Welch t = -1.6901, p = 0.091001 (ns)
+  Cohen's d = -0.1260
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	25.335833	22.452019
+True	360	26.558333	23.549088
+
+  eta squared = 0.000707
+
+  Welch t = -0.7129, p = 0.475913 (ns)
+  Cohen's d = -0.0531
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	29.711111	22.949132
+0.0625	180	29.836667	25.755555
+0.125	180	24.788333	22.648500
+0.25	180	19.452222	18.668883
+
+  Pearson r = -0.1795, p = 0.000001 ***, n = 720
+
+  eta squared = 0.034465
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	10.731667	7.435817
+128	240	23.485000	14.581396
+256	240	43.624583	27.767690
+
+  Pearson r = 0.5881, p = 0.000000 ***, n = 720
+
+  eta squared = 0.347112
+
+========================================================================
+  User-only Mean Shared Users per Transition
+========================================================================
+
+--- Grouped by Question ---
+Level	n	Mean	SD
+25	240	133.000000	72.946361
+28	240	133.000000	72.946361
+29	240	133.000000	72.946361
+
+  eta squared = 0.000000
+
+--- Grouped by Adversarial Strategy ---
+Level	n	Mean	SD
+false_information	360	133.000000	72.895545
+red_teaming	360	133.000000	72.895545
+
+  eta squared = 0.000000
+
+  Welch t = 0.0000, p = 1.000000 (ns)
+  Cohen's d = 0.0000
+
+--- Grouped by Centralize Adversaries ---
+Level	n	Mean	SD
+False	360	133.000000	72.895545
+True	360	133.000000	72.895545
+
+  eta squared = 0.000000
+
+  Welch t = 0.0000, p = 1.000000 (ns)
+  Cohen's d = 0.0000
+
+--- Grouped by Adversarial Proportion ---
+Level	n	Mean	SD
+0.0	180	149.333333	80.044680
+0.0625	180	140.000000	75.041888
+0.125	180	130.666667	70.039095
+0.25	180	112.000000	60.033510
+
+  Pearson r = -0.1896, p = 0.000000 ***, n = 720
+
+  eta squared = 0.035961
+
+--- Grouped by Number of Agents ---
+Level	n	Mean	SD
+64	240	57.000000	5.928444
+128	240	114.000000	11.856887
+256	240	228.000000	23.713774
+
+  Pearson r = 0.9766, p = 0.000000 ***, n = 720
+
+  eta squared = 0.953765
