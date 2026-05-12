@@ -40,14 +40,14 @@ def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
     rng = random.Random(seed)
 
     if graph_model == "random":
-        return nx.erdos_renyi_graph(num_nodes, 0.05, seed=seed)
+        return nx.erdos_renyi_graph(num_nodes, 1/16, seed=seed)
 
     if graph_model == "powerlaw_cluster":
-        m = min(14, max(1, num_nodes - 1))
+        m = min(8, max(1, num_nodes - 1))
         return nx.powerlaw_cluster_graph(num_nodes, m, 0.4, seed=seed)
 
     if graph_model == "barabasi_albert":
-        m = min(4, max(1, num_nodes - 1))
+        m = min(8, max(1, num_nodes - 1))
         return nx.barabasi_albert_graph(num_nodes, m, seed=seed)
 
     if graph_model == "stochastic_block":
@@ -56,7 +56,7 @@ def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
         base = num_nodes // num_blocks
         remainder = num_nodes % num_blocks
         sizes = [base + (1 if i < remainder else 0) for i in range(num_blocks)]
-        probs = [[0.12 if i == j else 0.02 for j in range(num_blocks)] for i in range(num_blocks)]
+        probs = [[0.17 if i == j else 0.028 for j in range(num_blocks)] for i in range(num_blocks)]
         return nx.stochastic_block_model(sizes, probs, seed=seed)
 
     if graph_model == "forest_fire":
@@ -66,8 +66,8 @@ def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
 
         graph = nx.Graph()
         graph.add_node(0)
-        forward_burn_prob = 0.35
-        max_burn_visits = 12
+        forward_burn_prob = 0.21
+        max_burn_visits = 4
 
         for new_node in range(1, num_nodes):
             graph.add_node(new_node)
