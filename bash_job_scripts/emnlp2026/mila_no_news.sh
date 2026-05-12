@@ -84,9 +84,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEIGHTS_DIR="./proportions"
 
 QUESTION_CHOICES=(
-    "25:genetic_enhancements_tweets.json"
-    "28:ai_copyright_tweets.json"
-    "29:environmental_protection_tweets.json"
+    "25:news_tweets/genetic_enhancements_tweets.json"
+    "28:news_tweets/ai_copyright_tweets.json"
+    "29:news_tweets/environmental_protection_tweets.json"
 )
 GRAPH_CHOICES=(
     "random"
@@ -104,7 +104,7 @@ NUM_NEWS_AGENTS_CHOICES=(0 1)
 MODEL_PROFILE_CHOICES=("qwen_loras" "gemma_loras" "llama3.1_loras" "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
-QUESTION_PICK="28:ai_copyright_tweets.json" #$(pick_random QUESTION_CHOICES)
+QUESTION_PICK="28:news_tweets/ai_copyright_tweets.json" #$(pick_random QUESTION_CHOICES)
 QUESTION_NUMBER="${QUESTION_PICK%%:*}"
 TWEET_FILE="${QUESTION_PICK#*:}"
 

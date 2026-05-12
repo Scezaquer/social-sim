@@ -84,9 +84,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEIGHTS_DIR="./proportions"
 
 QUESTION_CHOICES=(
-    "25:genetic_enhancements_tweets.json"
-    "28:ai_copyright_tweets.json"
-    "29:environmental_protection_tweets.json"
+    "25:news_tweets/genetic_enhancements_tweets.json"
+    "28:news_tweets/ai_copyright_tweets.json"
+    "29:news_tweets/environmental_protection_tweets.json"
 )
 GRAPH_CHOICES=(
     "random"
