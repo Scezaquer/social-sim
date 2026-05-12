@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=Model
-#SBATCH --array=1-80
+#SBATCH --job-name=Questions
+#SBATCH --array=1-60
 #SBATCH --time=6:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:rtx8000:1
@@ -104,7 +104,7 @@ NUM_NEWS_AGENTS_CHOICES=(0 1)
 MODEL_PROFILE_CHOICES=("qwen_loras" "gemma_loras" "llama3.1_loras" "minitaure_loras")
 PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
-QUESTION_PICK="28:ai_copyright_tweets.json" #$(pick_random QUESTION_CHOICES)
+QUESTION_PICK=$(pick_random QUESTION_CHOICES)
 QUESTION_NUMBER="${QUESTION_PICK%%:*}"
 TWEET_FILE="${QUESTION_PICK#*:}"
 
@@ -113,7 +113,7 @@ HOMOPHILY_FLAG=$(pick_random HOMOPHILY_CHOICES)
 SURVEY_CONTEXT_FLAG="off" #$(pick_random SURVEY_CONTEXT_CHOICES)
 NUM_AGENTS=256 #$(pick_random NUM_AGENTS_CHOICES)
 NUM_NEWS_AGENTS=1 #$(pick_random NUM_NEWS_AGENTS_CHOICES)
-MODEL_PROFILE=$(pick_random MODEL_PROFILE_CHOICES)
+MODEL_PROFILE="minitaure_loras" #$(pick_random MODEL_PROFILE_CHOICES)
 PROPORTIONS_OPTION="uniform" #$(pick_random PROPORTIONS_OPTION_CHOICES)
 
 BASE_MODEL=""
@@ -174,8 +174,8 @@ MODEL_INDEX_SETS=(
 )
 LORA_INDEX_SET=$(pick_random MODEL_INDEX_SETS)
 
-SURVEY_OUTPUT="survey_randomized_emnlp2026model_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
-VISUALIZER_OUTPUT="visualizer_randomized_emnlp2026model_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
+SURVEY_OUTPUT="survey_randomized_emnlp2026question_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
+VISUALIZER_OUTPUT="visualizer_randomized_emnlp2026question_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 
 CMD=(
     python -u src/main_unsloth.py
