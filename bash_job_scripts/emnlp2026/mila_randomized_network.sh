@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=Questions
+#SBATCH --job-name=Networks
 #SBATCH --array=1-150
 #SBATCH --time=6:00:00
 #SBATCH --mem=24Gb
