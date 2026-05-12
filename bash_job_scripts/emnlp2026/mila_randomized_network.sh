@@ -3,9 +3,8 @@
 #SBATCH --array=1-150
 #SBATCH --time=6:00:00
 #SBATCH --mem=24Gb
-#SBATCH --gres=gpu:rtx8000:1
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=unkillable
 
 
 set -euo pipefail
