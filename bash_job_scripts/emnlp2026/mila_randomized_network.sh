@@ -178,7 +178,7 @@ SURVEY_OUTPUT="survey_randomized_emnlp2026network_${SLURM_JOB_ID}_${SLURM_ARRAY_
 VISUALIZER_OUTPUT="visualizer_randomized_emnlp2026network_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 
 CMD=(
-    python -u src/main_unsloth.py
+    python -u src/main.py
     --survey_output "$SURVEY_OUTPUT"
     --array_id "${SLURM_ARRAY_TASK_ID}"
     --job_id "${SLURM_JOB_ID}"
