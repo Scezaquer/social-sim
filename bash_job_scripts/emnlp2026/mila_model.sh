@@ -3,7 +3,7 @@
 #SBATCH --array=1,2,3,7,8,12,14,15,19,20,22,23,25,28,31,34,35,36,37,39,40,51,52,61,62,70,71,73,75,76,79
 #SBATCH --time=18:00:00
 #SBATCH --mem=24Gb
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 
 set -euo pipefail
