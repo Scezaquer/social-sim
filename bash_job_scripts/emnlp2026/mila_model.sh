@@ -1,11 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=Model
-#SBATCH --array=1-80
-#SBATCH --time=6:00:00
+#SBATCH --array=1,2,3,7,8,12,14,15,19,20,22,23,25,28,31,34,35,36,37,39,40,51,52,61,62,70,71,73,75,76,79
+#SBATCH --time=18:00:00
 #SBATCH --mem=24Gb
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=1
-
 
 set -euo pipefail
 
@@ -100,7 +99,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("qwen_loras" "gemma_loras" "llama3.1_loras" "minitaure_loras")
+MODEL_PROFILE_CHOICES=("gemma_loras" "llama3.1_loras") #"qwen_loras" "minitaure_loras"
 PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
 QUESTION_PICK="28:news_tweets/ai_copyright_tweets.json" #$(pick_random QUESTION_CHOICES)
