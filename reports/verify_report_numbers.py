@@ -13,6 +13,7 @@ import json
 import math
 import statistics
 from typing import Any, Dict, List, Optional, Tuple
+import argparse
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -117,9 +118,15 @@ def sub(title: str) -> None:
 # Load data
 # ---------------------------------------------------------------------------
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--data_dir", type=str, default=".", help="Directory containing visualizer_randomized_*.json files")
+parser.add_argument("--glob_pattern", type=str, default="visualizer_randomized_*.json", help="Glob pattern to match JSON files")
+
+args = parser.parse_args()
+
 section("LOADING DATA  (excluding non-standard num_agents)")
 
-files = sorted(glob.glob("visualizer_randomized_*.json"))
+files = sorted(glob.glob(f"{args.data_dir}/{args.glob_pattern}"))
 runs: List[Dict[str, Any]] = []
 skipped_nonstandard = 0
 
