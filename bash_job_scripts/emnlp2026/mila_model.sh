@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=Model
-#SBATCH --array=2,19,39,62,70,71
+#SBATCH --array=1-210
 #SBATCH --time=1-00:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:1
@@ -99,7 +99,7 @@ HOMOPHILY_CHOICES=("on" "off")
 SURVEY_CONTEXT_CHOICES=("on" "off")
 NUM_AGENTS_CHOICES=(64 256 1024 4096)
 NUM_NEWS_AGENTS_CHOICES=(0 1)
-MODEL_PROFILE_CHOICES=("gemma_loras") # "llama3.1_loras") #"qwen_loras" "minitaure_loras"
+MODEL_PROFILE_CHOICES=("gemma_loras" "llama3.1_loras" "qwen_loras") #"minitaure_loras"
 PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
 QUESTION_PICK="28:news_tweets/ai_copyright_tweets.json" #$(pick_random QUESTION_CHOICES)
@@ -186,14 +186,11 @@ CMD=(
     --num_agents "$NUM_AGENTS"
     --num_news_agents "$NUM_NEWS_AGENTS"
     --visualizer_output "$VISUALIZER_OUTPUT"
+    --graph_model "$GRAPH_TYPE"
 )
 
 if [[ "$MODEL_PROFILE" == "qwen_base" ]]; then
     CMD+=(--base_only)
-fi
-
-if [[ "$GRAPH_TYPE" == "random" ]]; then
-    CMD+=(--random_graph)
 fi
 if [[ "$HOMOPHILY_FLAG" == "on" ]]; then
     CMD+=(--homophily)

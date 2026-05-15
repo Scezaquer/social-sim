@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=Questions
-#SBATCH --array=1-60
+#SBATCH --array=1-105
 #SBATCH --time=6:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:1
@@ -187,14 +187,11 @@ CMD=(
     --num_agents "$NUM_AGENTS"
     --num_news_agents "$NUM_NEWS_AGENTS"
     --visualizer_output "$VISUALIZER_OUTPUT"
+    --graph_model "$GRAPH_TYPE"
 )
 
 if [[ "$MODEL_PROFILE" == "qwen_base" ]]; then
     CMD+=(--base_only)
-fi
-
-if [[ "$GRAPH_TYPE" == "random" ]]; then
-    CMD+=(--random_graph)
 fi
 if [[ "$HOMOPHILY_FLAG" == "on" ]]; then
     CMD+=(--homophily)
