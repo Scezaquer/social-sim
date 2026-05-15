@@ -187,15 +187,13 @@ CMD=(
     --num_agents "$NUM_AGENTS"
     --num_news_agents "$NUM_NEWS_AGENTS"
     --visualizer_output "$VISUALIZER_OUTPUT"
+    --graph_model "$GRAPH_TYPE"
 )
 
 if [[ "$MODEL_PROFILE" == "qwen_base" ]]; then
     CMD+=(--base_only)
 fi
 
-if [[ "$GRAPH_TYPE" == "random" ]]; then
-    CMD+=(--random_graph)
-fi
 if [[ "$HOMOPHILY_FLAG" == "on" ]]; then
     CMD+=(--homophily)
 fi
