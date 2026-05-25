@@ -1,0 +1,625 @@
+
+========================================================================
+  LOADING DATA  (excluding non-standard num_agents)
+========================================================================
+Total eligible runs loaded : 70
+Skipped (non-standard na)  : 0
+
+========================================================================
+  SECTION 1 — DATASET OVERVIEW
+========================================================================
+
+--- Counts by model  [report: minitaur=169, llama3.1=111, qwen=151, qwen_base=72, gemma=92] ---
+  minitaur: n=70
+
+--- Counts by num_agents  [report: 64→155, 256→163, 1024→144, 4096→133] ---
+  256: n=70
+
+--- Counts by question  [report: Q25→204, Q28→192, Q29→199] ---
+  Q28: n=70
+
+--- Counts by graph_type  [report: random=287, powerlaw=308] ---
+  barabasi_albert: n=6
+  cycle: n=13
+  forest_fire: n=9
+  fully_connected: n=9
+  powerlaw_cluster: n=9
+  random: n=10
+  stochastic_block: n=14
+
+--- Counts by homophily  [report: True=283, False=312] ---
+  False: n=40
+  True: n=30
+
+--- Counts by add_survey_to_context  [report: True=312, False=283] ---
+  False: n=70
+
+--- Counts by proportions_option  [report: uniform=138, blueprint=152, average=118, distribution=115, None=72 (qwen_base)] ---
+  uniform: n=70
+
+--- Counts by num_news_agents  [report: 0=312, 1=283] ---
+  0: n=70
+
+--- Thread count by num_agents  [report: roughly constant ~780] ---
+  num_agents=64: mean=nan sd=nan n=0
+  num_agents=256: mean=793.9 sd=2.5 n=70
+  num_agents=1024: mean=nan sd=nan n=0
+  num_agents=4096: mean=nan sd=nan n=0
+
+========================================================================
+  SECTION 2 — NORMALIZATION CHECK
+========================================================================
+
+--- opinion_shift_rate is a fraction (changed/shared), already normalized ---
+  num_agents=256: stored=[0.4219, 0.2305, 0.2695] computed=[0.4219, 0.2305, 0.2695]  match=True
+  num_agents=256: stored=[0.5039, 0.2031, 0.2773] computed=[0.5039, 0.2031, 0.2773]  match=True
+  num_agents=256: stored=[0.4805, 0.2266, 0.2344] computed=[0.4805, 0.2266, 0.2344]  match=True
+
+--- opinion_shift_rate (fraction) by num_agents  [report: 0.225, 0.233, 0.142, 0.102] ---
+  na=64: fraction=nan±nan  abs_count=nan±nan  n=0
+  na=256: fraction=0.2721±0.0097  abs_count=69.7±2.5  n=70
+  na=1024: fraction=nan±nan  abs_count=nan±nan  n=0
+  na=4096: fraction=nan±nan  abs_count=nan±nan  n=0
+
+--- Correlation: num_agents vs fraction  [report: r=−0.42]  vs abs count  [report: r=+0.64] ---
+  fraction r=0.0000, p=1.0000 (ns), n=70
+  abs_count r=0.0000, p=1.0000 (ns), n=70
+  => fraction negative, abs positive — effect is real, not artifact
+
+--- Within-model correlations: num_agents vs opinion_shift_rate  [report: LoRA models all p<0.001; qwen_base r=-0.18 ns] ---
+  minitaur: r=0.0000, p=1.0000 (ns), n=70
+  llama3.1: r=nan, p=nan , n=0
+  qwen: r=nan, p=nan , n=0
+  qwen_base: r=nan, p=nan , n=0
+  gemma: r=nan, p=nan , n=0
+
+========================================================================
+  SECTION 3.1 — MODEL COMPARISON: CONSENSUS
+========================================================================
+
+--- Net consensus change by model  [report: minitaur=−0.095, qwen=−0.055, llama3.1=−0.027, qwen_base=+0.004, gemma=+0.025] ---
+  minitaur: mean=0.0270±0.0486 n=70  ↑43(61%) ↓24(34%)
+  llama3.1: mean=nan±nan n=0  ↑0(NaN%) ↓0(NaN%)
+  qwen: mean=nan±nan n=0  ↑0(NaN%) ↓0(NaN%)
+  qwen_base: mean=nan±nan n=0  ↑0(NaN%) ↓0(NaN%)
+  gemma: mean=nan±nan n=0  ↑0(NaN%) ↓0(NaN%)
+
+--- Initial consensus by model  [report: qwen_base ~1.000 on Q25/Q28] ---
+  minitaur: mean=0.5649±0.0155 n=70
+  llama3.1: mean=nan±nan n=0
+  qwen: mean=nan±nan n=0
+  qwen_base: mean=nan±nan n=0
+  gemma: mean=nan±nan n=0
+
+--- Pairwise Welch t-tests on net_consensus_change  [report table in Section 3.1] ---
+  minitaur(n=70,0.0270) vs gemma(n=0,nan): t=nan, p=nan , d=nan  [expected: d=1.03, p<0.001]
+  minitaur(n=70,0.0270) vs llama3.1(n=0,nan): t=nan, p=nan , d=nan  [expected: d=0.48, p<0.001]
+  qwen(n=0,nan) vs gemma(n=0,nan): t=nan, p=nan , d=nan  [expected: d=0.55, p<0.001]
+  minitaur(n=70,0.0270) vs qwen(n=0,nan): t=nan, p=nan , d=nan  [expected: d=0.29, p=0.012]
+  llama3.1(n=0,nan) vs qwen(n=0,nan): t=nan, p=nan , d=nan  [expected: ns]
+  llama3.1(n=0,nan) vs gemma(n=0,nan): t=nan, p=nan , d=nan  [expected: p=0.015*, d=0.33]
+
+--- Consensus change by question × model  [report table in Section 3.1] ---
+  Q25:
+  Q28:
+    minitaur: n=70, init=0.565, Δ=0.0270±0.0486, ↑43(61%)
+  Q29:
+
+--- Unusual initial consensus values  [report: qwen Q28=0.993, gemma Q29=0.562, minitaur Q29=1.000] ---
+  Q25 minitaur: mean=nan±nan n=0
+  Q25 llama3.1: mean=nan±nan n=0
+  Q25 qwen: mean=nan±nan n=0
+  Q25 gemma: mean=nan±nan n=0
+  Q28 minitaur: mean=0.5649±0.0155 n=70
+  Q28 llama3.1: mean=nan±nan n=0
+  Q28 qwen: mean=nan±nan n=0
+  Q28 gemma: mean=nan±nan n=0
+  Q29 minitaur: mean=nan±nan n=0
+  Q29 llama3.1: mean=nan±nan n=0
+  Q29 qwen: mean=nan±nan n=0
+  Q29 gemma: mean=nan±nan n=0
+
+========================================================================
+  SECTION 3.2 — AGENT COUNT vs OPINION SHIFT RATE
+========================================================================
+
+--- opinion_shift_rate by model × num_agents  [report table] ---
+  minitaur: n64=nan(n=0), n256=0.272(n=70), n1024=nan(n=0), n4096=nan(n=0)
+  llama3.1: n64=nan(n=0), n256=nan(n=0), n1024=nan(n=0), n4096=nan(n=0)
+  qwen: n64=nan(n=0), n256=nan(n=0), n1024=nan(n=0), n4096=nan(n=0)
+  gemma: n64=nan(n=0), n256=nan(n=0), n1024=nan(n=0), n4096=nan(n=0)
+
+--- 64 vs 1024 ratio by model  [report: ~1.63–1.98×, all p<0.001] ---
+  minitaur: 64=nan(n=0) vs 1024=nan(n=0), ratio=nanx, t=nan, p=nan 
+  llama3.1: 64=nan(n=0) vs 1024=nan(n=0), ratio=nanx, t=nan, p=nan 
+  qwen: 64=nan(n=0) vs 1024=nan(n=0), ratio=nanx, t=nan, p=nan 
+  gemma: 64=nan(n=0) vs 1024=nan(n=0), ratio=nanx, t=nan, p=nan 
+
+--- 64 vs 4096 for models that have 4096 runs ---
+  minitaur: 64=nan(n=0) vs 4096=nan(n=0), ratio=nanx, t=nan, p=nan 
+  llama3.1: 64=nan(n=0) vs 4096=nan(n=0), ratio=nanx, t=nan, p=nan 
+  qwen: 64=nan(n=0) vs 4096=nan(n=0), ratio=nanx, t=nan, p=nan 
+
+--- Correlation: num_agents vs net_consensus_change  [report: r=0.03, ns] ---
+  r=0.0000, p=1.0000 (ns), n=70
+
+========================================================================
+  SECTION 3.3 — SURVEY CONTEXT
+========================================================================
+
+--- Majority follow rate by ctx  [report: 0.495 vs 0.461, d=0.27, p<0.001] ---
+  ctx=True: mean=nan±nan n=0
+  ctx=False: mean=0.5166±0.0114 n=70
+  Welch t=nan, p=nan , d=nan
+
+--- BERT accuracy by ctx  [report: 0.984 vs 0.943, d=1.20, p<0.001] ---
+  ctx=True: mean=nan±nan n=0
+  ctx=False: mean=0.8931±0.0346 n=70
+  Welch t=nan, p=nan , d=nan
+
+--- Survey context distribution within each model  [for confound check] ---
+  minitaur: ctx=True:0, ctx=False:70
+  llama3.1: ctx=True:0, ctx=False:0
+  qwen: ctx=True:0, ctx=False:0
+  gemma: ctx=True:0, ctx=False:0
+
+--- Ctx effect on consensus change WITHIN each model  [report table in 3.3] ---
+  minitaur ctx=True: mean=nan±nan n=0
+  minitaur ctx=False: mean=0.0270±0.0486 n=70
+  minitaur: ctx effect t=nan, p=nan 
+  llama3.1 ctx=True: mean=nan±nan n=0
+  llama3.1 ctx=False: mean=nan±nan n=0
+  llama3.1: ctx effect t=nan, p=nan 
+  qwen ctx=True: mean=nan±nan n=0
+  qwen ctx=False: mean=nan±nan n=0
+  qwen: ctx effect t=nan, p=nan 
+  gemma ctx=True: mean=nan±nan n=0
+  gemma ctx=False: mean=nan±nan n=0
+  gemma: ctx effect t=nan, p=nan 
+
+--- BERT accuracy by ctx within each model  [report: gemma near-zero ctx effect] ---
+  minitaur ctx=True: mean=nan±nan n=0
+  minitaur ctx=False: mean=0.8931±0.0346 n=70
+  llama3.1 ctx=True: mean=nan±nan n=0
+  llama3.1 ctx=False: mean=nan±nan n=0
+  qwen ctx=True: mean=nan±nan n=0
+  qwen ctx=False: mean=nan±nan n=0
+  gemma ctx=True: mean=nan±nan n=0
+  gemma ctx=False: mean=nan±nan n=0
+
+--- BERT ctx effect for non-gemma only  [report: 98.0% vs 93.4%] ---
+  non-gemma ctx=True: mean=nan±nan n=0
+  non-gemma ctx=False: mean=0.8931±0.0346 n=70
+
+========================================================================
+  SECTION 3.4 — GEMMA BERT ACCURACY
+========================================================================
+
+--- BERT accuracy by model  [report: qwen_base=1.000, gemma=0.995, others ~0.947–0.954] ---
+  minitaur: mean=0.8931±0.0346 n=70, range=[0.7500,1.0000]
+
+--- Welch t-tests: gemma vs each other model  [report: all d~1.25–1.45, p<0.001] ---
+  gemma vs minitaur: t=nan, p=nan , d=nan
+  gemma vs llama3.1: t=nan, p=nan , d=nan
+  gemma vs qwen: t=nan, p=nan , d=nan
+
+--- bert_n by model  [report: gemma=145.7 vs others=147.4 — similar, ruling out sample-size explanation] ---
+  minitaur: mean bert_n=130.7±51.7 n=70
+  llama3.1: mean bert_n=nan±nan n=0
+  qwen: mean bert_n=nan±nan n=0
+  gemma: mean bert_n=nan±nan n=0
+
+--- Overall BERT accuracy  [report: 96.4%, range 77.9%–100%] ---
+  mean=0.8931±0.0346 n=70, range=[0.7500,1.0000]
+
+--- BERT accuracy by question ---
+  Q25: mean=nan±nan n=0
+  Q28: mean=0.8931±0.0346 n=70
+  Q29: mean=nan±nan n=0
+
+========================================================================
+  SECTION 3.5 — PROPORTIONS OPTION
+========================================================================
+
+--- Net consensus change by proportions_option ---
+  uniform: n=70, init=0.5649, Δconsensus=0.0270±0.0486
+  blueprint: n=0, init=nan, Δconsensus=nan±nan
+  average: n=0, init=nan, Δconsensus=nan±nan
+  distribution: n=0, init=nan, Δconsensus=nan±nan
+
+--- average vs uniform: no longer significant  [report: p=0.29 ns] ---
+  t=nan, p=nan 
+
+--- Proportions distribution within each model  [for confound check] ---
+  minitaur: {'uniform': 70}
+  llama3.1: {}
+  qwen: {}
+  gemma: {}
+
+--- Consensus change by proportions × model  [report table in 3.5] ---
+  minitaur: uniform=0.027(n=70), blueprint=nan(n=0), average=nan(n=0), distribution=nan(n=0)
+  llama3.1: uniform=nan(n=0), blueprint=nan(n=0), average=nan(n=0), distribution=nan(n=0)
+  qwen: uniform=nan(n=0), blueprint=nan(n=0), average=nan(n=0), distribution=nan(n=0)
+  gemma: uniform=nan(n=0), blueprint=nan(n=0), average=nan(n=0), distribution=nan(n=0)
+
+========================================================================
+  SECTION 3.6 — ECHO CHAMBER METRICS
+========================================================================
+
+--- Overall distributions ---
+  Assortativity  [report: mean=0.000±0.045]: mean=0.0243±0.0579 n=70, range=[-0.0489,0.2243]
+  Local Agreement  [report: mean=0.723±0.170]: mean=0.5350±0.0347 n=70, range=[0.4883,0.6381]
+  Cross-cutting Edges  [report: mean=0.277±0.170]: mean=0.4684±0.0308 n=70, range=[0.3845,0.5181]
+  Same-option Exposure  [report: mean=0.724±0.170]: mean=0.5233±0.0239 n=70, range=[0.5003,0.6062]
+
+--- Assortativity by homophily  [report: 0.006 vs −0.004, p=0.004**] ---
+  homophily=True: mean=0.0560±0.0748 n=30
+  homophily=False: mean=0.0005±0.0203 n=40
+  Welch t=3.953, p=0.0001 ***
+
+--- Local agreement by graph_type  [report: powerlaw=0.726 vs random=0.720, p=0.66 ns] ---
+  random: mean=0.5338±0.0246 n=10
+  powerlaw_cluster: mean=0.5209±0.0239 n=9
+  Welch t (powerlaw vs random)=-1.158, p=0.2467 (ns)
+
+--- Cross-cutting edges by graph_type  [report: random=0.280 vs powerlaw=0.275, p=0.70 ns] ---
+  random: mean=0.4735±0.0165 n=10
+  powerlaw_cluster: mean=0.4811±0.0213 n=9
+  Welch t (random vs powerlaw)=-0.871, p=0.3837 (ns)
+
+--- Correlation: same-option exposure vs net_consensus_change  [report: r=+0.46, p<0.001] ---
+  r=0.8280, p=0.0000 ***, n=70
+
+========================================================================
+  SECTION 3.7 — NEWS AGENTS (NULL RESULT)
+========================================================================
+
+--- Key metrics by num_news_agents  [report: all ns, p>0.16] ---
+  Δconsensus news=0: mean=0.0270±0.0486 n=70
+  Δconsensus news=1: mean=nan±nan n=0
+  Δconsensus: Welch t=nan, p=nan 
+
+  opinion_shift_rate news=0: mean=0.2721±0.0097 n=70
+  opinion_shift_rate news=1: mean=nan±nan n=0
+  opinion_shift_rate: Welch t=nan, p=nan 
+
+  BERT accuracy news=0: mean=0.8931±0.0346 n=70
+  BERT accuracy news=1: mean=nan±nan n=0
+  BERT accuracy: Welch t=nan, p=nan 
+
+
+========================================================================
+  SUMMARY TABLE — ALL EFFECT SIZES
+========================================================================
+
+--- Cohen's d: Minitaur vs Gemma  [report: d=1.03] ---
+  d=nan
+
+--- Cohen's d: Minitaur vs Llama3.1  [report: d=0.48] ---
+  d=nan
+
+--- Cohen's d: Qwen vs Gemma  [report: d=0.55] ---
+  d=nan
+
+--- Cohen's d: survey_context → majority follow rate  [report: d=0.27] ---
+  d=nan
+
+--- Cohen's d: survey_context → BERT accuracy  [report: d=1.20] ---
+  d=nan
+
+--- r: num_agents vs opinion_shift_rate  [report: r=−0.42] ---
+  r=0.0000, p=1.0000 (ns), n=70
+
+--- r: num_agents vs consensus change  [report: r=0.03, ns] ---
+  r=0.0000, p=1.0000 (ns), n=70
+
+--- bert_n confound: ctx=True vs False eval thread count ---
+  ctx=True bert_n: mean=nan n=0
+  ctx=False bert_n: mean=130.7 n=70
+  bert_n vs bert_accuracy: r=0.1974, p=0.0967
+
+========================================================================
+  SECTION 3.7 — NEIGHBOR ALIGNMENT SHIFT RATE (NASR)
+========================================================================
+
+--- NASR coverage  [report: 595/595 runs populated] ---
+  Runs with NASR: 70/70
+  Overall mean NASR: mean=0.1065±0.0164 n=70
+
+--- NASR vs OSR correlation  [report: r=0.943, p<0.001] ---
+  r=0.0682, p=0.573039 (ns), n=70
+
+--- NASR by model  [report: gemma=0.088, qwen=0.078, llama3.1=0.074, minitaur=0.057] ---
+  minitaur: mean=0.1065±0.0164 n=70
+  llama3.1: mean=nan±nan n=0
+  qwen: mean=nan±nan n=0
+  gemma: mean=nan±nan n=0
+
+--- NASR/OSR ratio by model  [report: ~0.36–0.42] ---
+  minitaur: ratio=0.392±0.061 n=70
+  llama3.1: ratio=nan±nan n=0
+  qwen: ratio=nan±nan n=0
+  gemma: ratio=nan±nan n=0
+
+--- NASR pairwise tests  [report: all sig except llama3.1 vs qwen] ---
+  gemma(nan,n=0) vs minitaur(0.1065,n=70): t=nan, p=nan , d=nan  [expected: d=0.89, p<0.001]
+  gemma(nan,n=0) vs llama3.1(nan,n=0): t=nan, p=nan , d=nan  [expected: d=0.40, p<0.01]
+  gemma(nan,n=0) vs qwen(nan,n=0): t=nan, p=nan , d=nan  [expected: d=0.27, p=0.035]
+  qwen(nan,n=0) vs minitaur(0.1065,n=70): t=nan, p=nan , d=nan  [expected: d=0.57, p<0.001]
+  llama3.1(nan,n=0) vs minitaur(0.1065,n=70): t=nan, p=nan , d=nan  [expected: d=0.49, p<0.001]
+  qwen(nan,n=0) vs llama3.1(nan,n=0): t=nan, p=nan , d=nan  [expected: ns]
+
+--- NASR vs num_agents  [report: r=−0.36, p<0.001] ---
+  r=0.0000, p=1.000000 (ns), n=70
+  na=64: mean=nan±nan n=0
+  na=256: mean=0.1065±0.0164 n=70
+  na=1024: mean=nan±nan n=0
+  na=4096: mean=nan±nan n=0
+
+--- Survey context → NASR (global)  [report: p<0.001, d=0.315] ---
+  ctx=True: mean=nan±nan n=0
+  ctx=False: mean=0.1065±0.0164 n=70
+  t=nan, p=nan , d=nan
+
+--- Survey context → NASR within each model  [report: minitaur p=0.034*, llama3.1 p=0.031*, gemma p=0.042*; qwen ns] ---
+  minitaur ctx=True: mean=nan±nan n=0
+  minitaur ctx=False: mean=0.1065±0.0164 n=70
+  minitaur: t=nan, p=nan 
+  llama3.1 ctx=True: mean=nan±nan n=0
+  llama3.1 ctx=False: mean=nan±nan n=0
+  llama3.1: t=nan, p=nan 
+  qwen ctx=True: mean=nan±nan n=0
+  qwen ctx=False: mean=nan±nan n=0
+  qwen: t=nan, p=nan 
+  gemma ctx=True: mean=nan±nan n=0
+  gemma ctx=False: mean=nan±nan n=0
+  gemma: t=nan, p=nan 
+
+========================================================================
+  SECTION 3.6 TIME SERIES — ECHO CHAMBER DYNAMICS
+========================================================================
+
+--- by_survey coverage  [report: 595/595 runs, 11 steps each] ---
+  Runs with by_survey: 70/70
+  by_survey lengths: min=11, max=11, mode=11
+
+--- First vs last survey step for each metric  [report table] ---
+  assortativity:
+    first=0.1585±0.2598 (n=70), last=0.0243±0.0579 (n=70)
+    Δ=-0.1342±0.2128 (n=70), p_vs_zero=0.0000 ***
+  local_agreement:
+    first=0.5931±0.1346 (n=70), last=0.5350±0.0347 (n=70)
+    Δ=-0.0581±0.1167 (n=70), p_vs_zero=0.0000 ***
+  cross_cutting:
+    first=0.4082±0.1250 (n=70), last=0.4684±0.0308 (n=70)
+    Δ=0.0602±0.1070 (n=70), p_vs_zero=0.0000 ***
+  same_option_exposure:
+    first=0.0000±0.0000 (n=70), last=0.5233±0.0239 (n=70)
+    Δ=0.5233±0.0239 (n=70), p_vs_zero=0.0000 ***
+
+--- Homophily → Δ assortativity  [report: True=−0.046, False=+0.002, p<0.001, d=−0.622] ---
+  homophily=True: mean=-0.3150±0.2183 n=30
+  homophily=False: mean=0.0013±0.0270 n=40
+  t=-7.891, p=0.0000 ***, d=-2.196
+
+--- Initial assortativity by homophily  [report: True=0.052, False=−0.006] ---
+  homophily=True: initial assortativity=mean=0.3709±0.2794 n=30
+  homophily=False: initial assortativity=mean=-0.0008±0.0248 n=40
+
+--- Graph type → echo deltas  [report: assortativity p=0.016*; others ns] ---
+  assortativity: random=-0.1344(n=10), powerlaw=-0.0858(n=9), p=0.3592 (ns)
+  local_agreement: random=-0.0520(n=10), powerlaw=-0.0547(n=9), p=0.9444 (ns)
+  cross_cutting: random=0.0577(n=10), powerlaw=0.0404(n=9), p=0.5005 (ns)
+  same_option_exposure: random=0.5179(n=10), powerlaw=0.5194(n=9), p=0.7735 (ns)
+
+--- Δ local_agreement vs net_consensus_change  [report: r=0.904, p<0.001] ---
+  r=0.2400, p=0.041454 *, n=70
+
+--- Δ assortativity vs net_consensus_change  [report: r=−0.132, p=0.001**] ---
+  r=0.0703, p=0.560973 (ns), n=70
+
+========================================================================
+  SECTION 3.9 — PARAMETER INTERACTIONS
+========================================================================
+
+--- Variance decomposition (η²) — net_consensus_change  [report: model=0.090, ctx=0.028] ---
+    model: η²=0.000
+    num_agents: η²=0.000
+    ctx: η²=0.000
+    homophily: η²=0.001
+    graph_type: η²=0.238
+    prop_opt: η²=0.000
+    num_news: η²=0.000
+    question: η²=0.000
+
+--- Variance decomposition (η²) — opinion_shift_rate  [report: model=0.200, num_agents=0.230] ---
+    model: η²=0.000
+    num_agents: η²=0.000
+    ctx: η²=0.000
+    homophily: η²=0.001
+    graph_type: η²=0.237
+    prop_opt: η²=0.000
+    question: η²=0.000
+
+--- Variance decomposition (η²) — BERT accuracy  [report: model=0.266, ctx=0.264] ---
+    model: η²=0.000
+    ctx: η²=0.000
+    num_agents: η²=0.000
+    homophily: η²=0.001
+    question: η²=0.000
+
+--- Variance decomposition (η²) — Δ_assortativity  [report: homophily=0.088, num_agents=0.037] ---
+    homophily: η²=0.549
+    model: η²=0.000
+    graph_type: η²=0.097
+    num_agents: η²=0.000
+    ctx: η²=0.000
+
+--- 2x2 interaction contrasts  [report: homophily×powerlaw IC=+0.038, ctx×news IC=−0.006] ---
+  [opinion_shift_rate] ctx x homophily: insufficient data
+  [net_consensus_change] ctx x homophily: insufficient data
+  [net_consensus_change] ctx x powerlaw: insufficient data
+  [Δ_assortativity] homophily x powerlaw:
+    homophily=F/powerlaw=F=0.0031(n=34)  homophily=F/powerlaw=T=-0.0091(n=6)
+    homophily=T/powerlaw=F=-0.3234(n=27)  homophily=T/powerlaw=T=-0.2393(n=3)
+    Effect of powerlaw given homophily=F: -0.0122
+    Effect of powerlaw given homophily=T: +0.0841
+    Interaction contrast (IC): +0.0963
+  [bert_accuracy] ctx x news: insufficient data
+
+--- Model x ctx → net_consensus_change  [report: Llama diff=+0.082*, Qwen diff=+0.103***; Minitaur/Gemma ns] ---
+  minitaur: ctx=T=nan(n=0) ctx=F=0.0270(n=70) diff=+nan t=nan, p=nan 
+  llama3.1: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan t=nan, p=nan 
+  qwen: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan t=nan, p=nan 
+  gemma: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan t=nan, p=nan 
+
+--- ctx × num_agents → majority_follow_rate  [report: ns at 64; p<0.001 at 1024 and 4096] ---
+  na=64: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan p=nan 
+  na=256: ctx=T=nan(n=0) ctx=F=0.5166(n=70) diff=+nan p=nan 
+  na=1024: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan p=nan 
+  na=4096: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan p=nan 
+
+--- num_agents × model → OSR: additive check  [report: all r negative, all p<0.001] ---
+  minitaur: r=0.0000, p=1.0000 (ns), n=70
+  llama3.1: r=nan, p=nan , n=0
+  qwen: r=nan, p=nan , n=0
+  gemma: r=nan, p=nan , n=0
+
+--- homophily × graph_type → Δ_assortativity  [report: IC=+0.038, effect concentrated in homophilic] ---
+  homophily=True, random: Δassort=-0.2172±0.0440 n=6
+  homophily=True, powerlaw_cluster: Δassort=-0.2393±0.0333 n=3
+  homophily=False, random: Δassort=-0.0101±0.0154 n=4
+  homophily=False, powerlaw_cluster: Δassort=-0.0091±0.0234 n=6
+
+========================================================================
+  SECTION 3.10 — QWEN_BASE ABLATION (no persona LoRAs)
+========================================================================
+
+--- qwen_base identification check  [report: proportions_option=None, n=72] ---
+  qwen_base runs: 0
+  qwen (LoRA) runs: 0
+  qwen_base proportions_option values: set()  (should be {None})
+
+--- Key metrics: qwen vs qwen_base  [report: OSR d=1.46, MFR d=1.60, NASR d=1.52, BERT d=1.62] ---
+  NCC: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=0.44]
+  OSR: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=1.46]
+  MFR: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=1.60]
+  NASR: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=1.52]
+  BERT: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=1.62]
+  local_agreement: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=1.74]
+  cross_cutting: qwen=nan±nan(n=0) qwen_base=nan±nan(n=0) t=nan, p=nan , d=nan  [expected: d=1.74]
+
+--- Initial consensus by question: qwen vs qwen_base  [report: qwen_base ~1.000 on Q25/Q28] ---
+  Q25 qwen: init=nan±nan n=0
+  Q25 qwen_base: init=nan±nan n=0
+  Q28 qwen: init=nan±nan n=0
+  Q28 qwen_base: init=nan±nan n=0
+  Q29 qwen: init=nan±nan n=0
+  Q29 qwen_base: init=nan±nan n=0
+
+--- BERT accuracy by ctx: qwen_base near-perfect regardless of ctx  [report: ~1.000 both] ---
+  qwen ctx=True: BERT=nan±nan n=0
+  qwen ctx=False: BERT=nan±nan n=0
+  qwen_base ctx=True: BERT=nan±nan n=0
+  qwen_base ctx=False: BERT=nan±nan n=0
+
+--- Survey context → NCC: qwen p<0.001, qwen_base ns  [report: qwen +0.103, qwen_base ~0] ---
+  qwen: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan t=nan, p=nan 
+  qwen_base: ctx=T=nan(n=0) ctx=F=nan(n=0) diff=+nan t=nan, p=nan 
+
+--- Survey context → MFR: qwen p<0.05, qwen_base ns ---
+  qwen: ctx=T=nan(n=0) ctx=F=nan(n=0) t=nan, p=nan 
+  qwen_base: ctx=T=nan(n=0) ctx=F=nan(n=0) t=nan, p=nan 
+
+--- num_agents → OSR: qwen r=-0.42***, qwen_base r=-0.18 ns  [report] ---
+  qwen: r=nan, p=nan , n=0
+    na=64: nan±nan n=0
+    na=256: nan±nan n=0
+    na=1024: nan±nan n=0
+    na=4096: nan±nan n=0
+  qwen_base: r=nan, p=nan , n=0
+    na=64: nan±nan n=0
+    na=256: nan±nan n=0
+    na=1024: nan±nan n=0
+    na=4096: nan±nan n=0
+
+--- Homophily → Δ_assortativity: qwen p=0.006**, qwen_base ns  [report] ---
+  qwen: hom=T=nan±nan(n=0) hom=F=nan±nan(n=0) t=nan, p=nan 
+  qwen_base: hom=T=nan±nan(n=0) hom=F=nan±nan(n=0) t=nan, p=nan 
+
+========================================================================
+  FOCUSED CHECK — NETWORK STRUCTURE & HOMOPHILY IMPACT
+========================================================================
+
+--- Main effects on social-dynamics metrics ---
+  net_consensus_change: random=0.0309±0.0473(n=10) vs powerlaw=0.0317±0.0396(n=9)
+    Δ=-0.0008, t=-0.041, p=0.9670 (ns), d=-0.019
+  net_consensus_change: homophily=True=0.0255±0.0478(n=30) vs homophily=False=0.0281±0.0498(n=40)
+    Δ=-0.0026, t=-0.222, p=0.8247 (ns), d=-0.053
+  opinion_shift_rate: random=0.2704±0.0075(n=10) vs powerlaw=0.2773±0.0095(n=9)
+    Δ=-0.0069, t=-1.754, p=0.0793 (ns), d=-0.816
+  opinion_shift_rate: homophily=True=0.2724±0.0081(n=30) vs homophily=False=0.2719±0.0108(n=40)
+    Δ=+0.0006, t=0.262, p=0.7935 (ns), d=0.061
+  majority_follow_rate: random=0.5158±0.0073(n=10) vs powerlaw=0.5181±0.0143(n=9)
+    Δ=-0.0023, t=-0.437, p=0.6618 (ns), d=-0.208
+  majority_follow_rate: homophily=True=0.5165±0.0091(n=30) vs homophily=False=0.5167±0.0130(n=40)
+    Δ=-0.0002, t=-0.060, p=0.9518 (ns), d=-0.014
+  NASR: random=0.1029±0.0065(n=10) vs powerlaw=0.0908±0.0056(n=9)
+    Δ=+0.0120, t=4.344, p=0.0000 ***, d=1.979
+  NASR: homophily=True=0.1021±0.0146(n=30) vs homophily=False=0.1098±0.0170(n=40)
+    Δ=-0.0077, t=-2.019, p=0.0435 *, d=-0.477
+
+--- Main effects on final echo-structure metrics ---
+  final_assortativity: random=0.0158±0.0377(n=10) vs powerlaw=0.0006±0.0176(n=9)
+    Δ=+0.0152, t=1.145, p=0.2521 (ns), d=0.508
+  final_assortativity: homophily=True=0.0560±0.0748(n=30) vs homophily=False=0.0005±0.0203(n=40)
+    Δ=+0.0554, t=3.953, p=0.0001 ***, d=1.083
+  final_local_agreement: random=0.5338±0.0246(n=10) vs powerlaw=0.5209±0.0239(n=9)
+    Δ=+0.0129, t=1.158, p=0.2467 (ns), d=0.531
+  final_local_agreement: homophily=True=0.5487±0.0384(n=30) vs homophily=False=0.5246±0.0279(n=40)
+    Δ=+0.0241, t=2.908, p=0.0036 **, d=0.735
+  final_cross_cutting_edges: random=0.4735±0.0165(n=10) vs powerlaw=0.4811±0.0213(n=9)
+    Δ=-0.0077, t=-0.871, p=0.3837 (ns), d=-0.406
+  final_cross_cutting_edges: homophily=True=0.4548±0.0337(n=30) vs homophily=False=0.4787±0.0240(n=40)
+    Δ=-0.0239, t=-3.306, p=0.0009 ***, d=-0.837
+  final_same_option_exposure: random=0.5179±0.0092(n=10) vs powerlaw=0.5194±0.0124(n=9)
+    Δ=-0.0015, t=-0.288, p=0.7735 (ns), d=-0.134
+  final_same_option_exposure: homophily=True=0.5199±0.0161(n=30) vs homophily=False=0.5258±0.0283(n=40)
+    Δ=-0.0060, t=-1.116, p=0.2646 (ns), d=-0.250
+
+--- Temporal effects (last-first by_survey deltas) ---
+  Δassortativity: random=-0.1344±0.1122(n=10) vs powerlaw=-0.0858±0.1177(n=9)
+    Δ=-0.0485, t=-0.917, p=0.3592 (ns), d=-0.422
+  Δassortativity: homophily=True=-0.3150±0.2183(n=30) vs homophily=False=0.0013±0.0270(n=40)
+    Δ=-0.3163, t=-7.891, p=0.0000 ***, d=-2.196
+  Δlocal_agreement: random=-0.0520±0.0663(n=10) vs powerlaw=-0.0547±0.1004(n=9)
+    Δ=+0.0028, t=0.070, p=0.9444 (ns), d=0.033
+  Δlocal_agreement: homophily=True=-0.1590±0.1123(n=30) vs homophily=False=0.0176±0.0319(n=40)
+    Δ=-0.1766, t=-8.365, p=0.0000 ***, d=-2.287
+  Δcross_cutting: random=0.0577±0.0566(n=10) vs powerlaw=0.0404±0.0548(n=9)
+    Δ=+0.0172, t=0.674, p=0.5005 (ns), d=0.309
+  Δcross_cutting: homophily=True=0.1470±0.1110(n=30) vs homophily=False=-0.0048±0.0312(n=40)
+    Δ=+0.1518, t=7.279, p=0.0000 ***, d=1.991
+
+--- Interaction focus: homophily × graph_type on Δassortativity ---
+  homophily=False, graph=random: Δassort=-0.0101±0.0154 (n=4)
+  homophily=False, graph=powerlaw_cluster: Δassort=-0.0091±0.0234 (n=6)
+  homophily=True, graph=random: Δassort=-0.2172±0.0440 (n=6)
+  homophily=True, graph=powerlaw_cluster: Δassort=-0.2393±0.0333 (n=3)
+  interaction_contrast(IC)=-0.0230
+
+--- Within-model homophily impact on Δassortativity ---
+  minitaur: hom=T -0.3150±0.2183(n=30) vs hom=F 0.0013±0.0270(n=40)
+    Δ=-0.3163, t=-7.891, p=0.0000 ***, d=-2.196
+  llama3.1: hom=T nan±nan(n=0) vs hom=F nan±nan(n=0)
+    Δ=+nan, t=nan, p=nan , d=nan
+  qwen: hom=T nan±nan(n=0) vs hom=F nan±nan(n=0)
+    Δ=+nan, t=nan, p=nan , d=nan
+  qwen_base: hom=T nan±nan(n=0) vs hom=F nan±nan(n=0)
+    Δ=+nan, t=nan, p=nan , d=nan
+  gemma: hom=T nan±nan(n=0) vs hom=F nan±nan(n=0)
+    Δ=+nan, t=nan, p=nan , d=nan
+
+========================================================================
+  DONE
+========================================================================

@@ -1,0 +1,989 @@
+\documentclass[11pt]{article}
+
+% Change "review" to "final" to generate the final (sometimes called camera-ready) version.
+% Change to "preprint" to generate a non-anonymous version with page numbers.
+\usepackage[review]{acl}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[colorinlistoftodos,textsize=small]{todonotes}
+\newcommand{\inlinetodo}[1]{\todo[inline,color=yellow!40]{\textbf{TODO:} #1}}
+
+% Standard package includes
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{booktabs}
+\usepackage{amsmath}
+% For proper rendering and hyphenation of words containing Latin characters (including in bib files)
+\usepackage[T1]{fontenc}
+% For Vietnamese characters
+% \usepackage[T5]{fontenc}
+% See https://www.latex-project.org/help/documentation/encguide.pdf for other character sets
+
+% This assumes your files are encoded as UTF8
+\usepackage[utf8]{inputenc}
+
+% This is not strictly necessary, and may be commented out,
+% but it will improve the layout of the manuscript,
+% and will typically save some space.
+\usepackage{microtype}
+
+% This is also not strictly necessary, and may be commented out.
+% However, it will improve the aesthetics of text in
+% the typewriter font.
+\usepackage{inconsolata}
+
+%Including images in your LaTeX document requires adding
+%additional package(s)
+\usepackage{graphicx}
+
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{amssymb}
+\usepackage{enumitem}
+
+% If the title and author information does not fit in the area allocated, uncomment the following
+%
+%\setlength\titlebox{<dim>}
+%
+% and set <dim> to something 5cm or larger.
+
+% \title{Instructions for *ACL Proceedings}
+
+% Author information can be set in various styles:
+% For several authors from the same institution:
+% \author{Author 1 \and ... \and Author n \\
+%         Address line \\ ... \\ Address line}
+% if the names do not fit well on one line use
+%         Author 1 \\ {\bf Author 2} \\ ... \\ {\bf Author n} \\
+% For authors from different institutions:
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \And  ... \And
+%         Author n \\ Address line \\ ... \\ Address line}
+% To start a separate ``row'' of authors use \AND, as in
+% \author{Author 1 \\ Address line \\  ... \\ Address line
+%         \AND
+%         Author 2 \\ Address line \\ ... \\ Address line \And
+%         Author 3 \\ Address line \\ ... \\ Address line}
+
+\title{Analyzing The Impact Of Varying Network Structures On LLM-Based Social Simulations}
+
+%\author{
+%  \textbf{First Author\textsuperscript{1}},
+%  \textbf{Second Author\textsuperscript{1,2}},
+%  \textbf{Third T. Author\textsuperscript{1}},
+%  \textbf{Fourth Author\textsuperscript{1}},
+%\\
+%  \textbf{Fifth Author\textsuperscript{1,2}},
+%  \textbf{Sixth Author\textsuperscript{1}},
+%  \textbf{Seventh Author\textsuperscript{1}},
+%  \textbf{Eighth Author \textsuperscript{1,2,3,4}},
+%\\
+%  \textbf{Ninth Author\textsuperscript{1}},
+%  \textbf{Tenth Author\textsuperscript{1}},
+%  \textbf{Eleventh E. Author\textsuperscript{1,2,3,4,5}},
+%  \textbf{Twelfth Author\textsuperscript{1}},
+%\\
+%  \textbf{Thirteenth Author\textsuperscript{3}},
+%  \textbf{Fourteenth F. Author\textsuperscript{2,4}},
+%  \textbf{Fifteenth Author\textsuperscript{1}},
+%  \textbf{Sixteenth Author\textsuperscript{1}},
+%\\
+%  \textbf{Seventeenth S. Author\textsuperscript{4,5}},
+%  \textbf{Eighteenth Author\textsuperscript{3,4}},
+%  \textbf{Nineteenth N. Author\textsuperscript{2,5}},
+%  \textbf{Twentieth Author\textsuperscript{1}}
+%\\
+%\\
+%  \textsuperscript{1}Affiliation 1,
+%  \textsuperscript{2}Affiliation 2,
+%  \textsuperscript{3}Affiliation 3,
+%  \textsuperscript{4}Affiliation 4,
+%  \textsuperscript{5}Affiliation 5
+%\\
+%  \small{
+%    \textbf{Correspondence:} \href{mailto:email@domain}{email@domain}
+%  }
+%}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+  Generative social simulations rely on Large Language Models (LLMs) to emulate human interactions and study sociological phenomena in controlled sandboxes. However, while recent frameworks simulate rich multi-agent environments, the impact of the underlying followership network topology on the resulting societal dynamics remains critically under-explored. We systematically analyze how varying network initialization strategies, spanning seven classical graph models including Erd\H{o}s--R\'{e}nyi, Barab\'{a}si--Albert, Stochastic Block, Forest Fire, and others, alter opinion dynamics in an LLM-based social network. We deploy persona-grounded agents within a multi-agent simulator across 1136 simulation roll-outs. An initial broad exploration across 595 runs with two topologies and many experimental configurations yields near-zero behavioral effects, but a follow-up controlled study of 156 runs across seven topologies, holding confounds constant, reveals graph topology to be an important driver of opinion dynamics, explaining up to 90.6\% of variance in neighbor-alignment behavior and 28.5\% of consensus change variance. 385 additional runs are dedicated to robustness controls. We further introduce a semantic influence analysis pipeline and find that topology-dependent influence flow patterns correlate with behavioral outcomes. Together, these results demonstrate that network structure fundamentally shapes LLM social simulation dynamics, but that this signal is easily masked by between-model variance in less controlled designs.
+\end{abstract}
+
+\section{Introduction}
+
+Social media platforms shape public discourse through the interplay of content and structure: \emph{what} people say matters, but so does \emph{who} follows \emph{whom}. As Large Language Models (LLMs) have developed and gained more agentic capabilities, there has been a surge of interest in systems where multiple LLM agents interact autonomously, from collaborative task-solving \cite{luo2025largelanguagemodelagent} to entirely LLM-populated social-media platforms such as Moltbook \cite{li2026riseaiagentcommunities, zhang2026agentswildsafetysociety}. The field of generative social simulations uses LLMs to simulate humans and their interactions, with one of the end-goals being to simulate human societies and gain insights into sociological phenomena that have historically been hard to study. A key area of research within generative social simulations is social-media simulations. If LLMs can give insights into how humans behave on social media, these systems can be used as sandboxes for a broad array of research \cite{piao2025agentsocietylargescalesimulationllmdriven}. While there have been several proposals for social simulation systems \cite{touzel2024simulationsolvingsocietalscalemanipulation,yang2025oasisopenagentsocial, piao2025agentsocietylargescalesimulationllmdriven}, these lack systematic analyses of their respective components and design choices. In particular, the \emph{followership network}, i.e., the directed graph that determines which agents observe which others' posts, is typically initialized with a single random or unspecified algorithm, with no analysis of how this structural choice affects the resulting dynamics.
+
+Understanding the impact of such network topology choices on generative social simulations is crucial for two primary reasons. First, for researchers utilizing these systems as sociological sandboxes, disentangling the artifacts of the network structure from other components of a simulation is essential to ensure valid conclusions. Second, systematically analyzing the behavior of LLM simulations under different followership-network strategies allows us to get insights into how accurately LLMs approximate human social media behavior. Ultimately, establishing this structural baseline is a necessary foundational step in maturing LLM social simulations. By building a rigorous understanding of these underlying dynamics, these simulated environments can eventually serve as reliable, high-fidelity testbeds for studying malicious disinformation strategies and testing structural interventions, thereby helping to safeguard real-world human online ecosystems \cite{touzel2024simulationsolvingsocietalscalemanipulation}.
+
+In this work, we conduct a two-phase empirical study spanning 1136 simulation roll-outs. In the first phase, we explore a broad parameter space (595 runs, two topologies, four base models, multiple network sizes) and find that behavioral effects of topology are near-zero, a null result that we trace to more impactful parameters' variance masking the network-topology signal. In the second phase, we hold confounding variables constant and expand to seven graph topologies, revealing that network structure does in fact explain a lot of the variance in opinion dynamics when other parameters are fixed ($\eta^2$ up to 0.906). We further introduce a post-hoc semantic influence analysis pipeline that uncovers topology-dependent information flow patterns correlated with behavioral outcomes.
+
+\section{Related Works}
+
+Our work lies at the intersection of two primary areas of research: social simulations and network topology algorithms. 
+
+\paragraph{Social Simulators and Opinion Dynamics} \quad Given the promise of social simulations, there have been several works proposing social simulation architectures. These include Oasis \cite{yang2025oasisopenagentsocial} that scales social simulations to 1,000,000 agents and provides some initial work on the evaluation of opinion dynamics such as herding, polarization, and information propagation. Other works, like AgentSociety \cite{piao2025agentsocietylargescalesimulationllmdriven} and SandboxSocial \cite{touzel2024simulationsolvingsocietalscalemanipulation}, also touch on or analyze phenomena such as polarization and opinion evolution. However, none of these works systematically vary the followership network structure, typically relying on a random (or unspecified) network initialization. While there has been some initial work on exploring the effect of network initialization algorithms on opinion dynamics, these have been limited by their scale and design choices. For example, Zheng and Tang \cite{zheng2026simulatingsocialnetwork} provide a preliminary analysis by focusing on the difference between scale-free and small-world networks, but they only conduct studies on a system of 15 agents. Our study expands on such work in three concrete dimensions: scale (up to 4,096 agents), breadth of topologies (seven graph models), and statistical methodology (permutation ANOVA with FDR correction across 1136 total runs).
+
+\paragraph{Network Initialization Algorithms} \quad To understand the impact of topology, the literature traditionally relies on established mathematical baselines to model specific macroscopic network properties. The Erdös-Rényi (ER) model \cite{erdos1959random} provides a foundational baseline of uniform randomness, while Stochastic Block Models (SBM) \cite{abbe2023communitydetectionstochasticblock} are utilized to explicitly construct community structures and study potential echo chambers. Additionally, the Barabási–Albert (BA) model \cite{albert2002statistical}, the Forest Fire (FF) model \cite{leskovec2005graphs}, and directed scale-free graphs \cite{10.5555/644108.644133} have long been the standard for capturing the preferential attachment, dynamic growth, and hub-dominated nature characteristic of real-world social platforms. While more sophisticated approaches have been proposed, our analysis focuses on these classical, widely-used algorithms, which may be expanded by future works.
+
+% For our LLM-based social simulation context, we can also frame the network generation problem as a followership graph prediction problem within a text-attributed graph. Our users are the nodes that possess rich textual personas, and the edges represent the followership relation. Within this framing, previous works have introduced frameworks like GAG-General, provided alongside the GDGB benchmark \cite{peng2026gdgb}. This method treats graph synthesis as an inductive multi-agent simulation task. Additionally, recent empirical studies \cite{10.1093/pnasnexus/pgaf317} demonstrate that when LLMs are allowed to sequentially form links based on textual attributes, they naturally exhibit classical mathematical phenomena like preferential attachment and triadic closure. Yet, the literature also cautions that while LLMs can generate structurally realistic networks that mirror human demographic homophily, they often introduce unique generative artifacts, such as significantly overestimating political homophily \cite{Chang_Chaszczewicz_Wang_Josifovska_Pierson_Leskovec_2025}.
+
+Existing research lacks a systematic empirical analysis of how varying these foundational topologies
+%, ranging from classical mathematical algorithms to modern LLM-driven generative artifacts, 
+specifically alters the complex, high-dimensional opinion dynamics and information propagation within societies of LLM agents. Our work attempts to bridge this gap, to gain stronger insights into the capabilities of LLM agent-driven social simulations today.
+
+\section{Problem Definition}
+
+In this project, we propose to answer the following research question: \textbf{How does varying the structure of the followership network in an LLM-based social simulation impact opinion dynamics?}
+
+In our experiments, we vary our followership network initialization across seven classical mathematical graph models (see Section \ref{variables_phase_2}). For each algorithm, the followership graph is generated first, and personas are then assigned to nodes, either randomly or using a homophily-aware strategy placing like-minded models together (see Appendix~\ref{appendix_homophily}).
+
+We measure opinion dynamics using several families of metrics. For echo chambers, we use network assortativity, cross-cutting edge fraction, and mean local agreement. For herd effects, we track consensus evolution and the fraction of agents aligning with their neighbors' majority opinion (Neighbor Alignment Shift Rate). For information propagation, we introduce a post-hoc semantic influence analysis: we embed all simulation messages using TwHiN-BERT \cite{zhang2023twhinbertsociallyenrichedpretrainedlanguage} and construct a weighted influence graph where edge weights reflect cosine similarity modulated by temporal decay, allowing us to trace influence cascades and measure global semantic drift across the simulation. As a sanity check for simulation validity, we also include a stylistic realism metric using a BERT classifier.
+
+We hypothesize that the underlying network topology will alter the simulated opinion dynamics. Specifically, we anticipate that (1) hub-dominated topologies (e.g., BA) will facilitate rapid global information propagation but suppress local neighbor-alignment effects, while community-structured topologies (e.g., SBM) will exhibit stronger local clustering of opinion. Furthermore, (2) homophily-aware persona assignment will create measurably different echo-chamber dynamics that interact with the underlying topology.
+
+
+We note that while many recent works attempt to reproduce human behavior through similar simulation setups, validating claims of human-likeness remains a particularly challenging open question \cite{larooij2025largelanguagemodelssolve}. We will therefore not approach this problem: we are interested in the impact of varying network structure on opinion dynamics in LLM social networks, but make no claims regarding the applicability of our results to human-populated networks.
+
+\section{Dataset}
+
+\paragraph{Pre-existing Data Sources.} The models we use within the simulator are fine-tuned on anonymized BlueSky posts and interactions from the BluePrint dataset \cite{bückkaeffer2025textttblueprintsocialmediauser}. BluePrint clusters users into 25 behavioral archetypes based on posting patterns and topical interests. For each archetype, a Low-Rank Adaptation (LoRA) adapter is trained on that archetype's subset of posts, yielding 25 adapters that capture distinct communication styles and topical tendencies. \inlinetodo{Add 2--3 sentences describing what the 25 archetypes represent (e.g., political orientation, topic focus) and the LoRA training procedure (base model, rank, training data size per archetype).} During simulation, each agent is assigned one of these adapters, which governs its language generation behavior. Survey questions and their per-archetype answer distributions are also sourced from BluePrint. The simulation platform is built by \citet{bückkaeffer2026textitsiliconsocietycookbookdesign}.
+
+\paragraph{Synthetically Generated Data.} The interaction data on which we compute our herd effect, echo chamber, and influence metrics are generated through LLM-based social simulation roll-outs. Given the artificial nature of this dataset, we record all information available within the simulation: the followership graph, regular answers to survey questions, messages written, impressions on each message, messages seen but not interacted-with, and the full observation history per agent. To seed dynamics into the simulation, a biased news agent posts pre-generated ``news'' messages. These were generated using Gemini 3.1 Pro \cite{geminiteam2025geminifamilyhighlycapable}, used from the chat interface, explicitly biased in favor of one survey option, and are loaded from a static set of 50 pre-generated posts per topic.
+
+\section{Methodology}
+
+Our study was primarily structured in three phases. In Phase~1 we conducted a broad exploration across a wide parameter space with two topologies, designed to identify which factors matter. Phase~2 was a controlled follow-up across seven topologies, designed to isolate the effect of network structure by holding other factors constant. In Phase~3, we conducted further runs to test the robustness and generalizability of our findings from Phase~2.
+
+\subsection{Metrics}
+
+Designing metrics or evaluations for social simulations can be challenging. This is partly because the imitative nature of the objective makes it hard to define what a realistic simulation means. The literature has yet to converge on a set of metrics, with previous works pointing to the issue of validation remaining poorly addressed and failing to evidence operational validity \cite{larooij2025largelanguagemodelssolve}. To best ground our experimentation, we thus aim to cover a wide range of metrics. 
+
+\paragraph{Realism} We compute a stylistic realism metric by training a BERT classifier to distinguish between human-generated and simulation generated social-media threads. We use the TWHiN model, which was pre-trained on Twitter data \cite{zhang2023twhinbertsociallyenrichedpretrainedlanguage}, as our base, and further train it for our use case. For this purpose, we source human data from the BluePrint dataset and LLM data from our simulation runs. Together, we curate 200000 training samples, carefully avoiding data leakage issues. For each simulation run conducted, 150 threads are used as a test set. If a thread is harder to identify as being AI-generated, we interpret it as being more realistic.
+
+\paragraph{Information Dynamics Metrics} All other metrics are computed using model survey responses. Considering that they lack human baselines, they \textbf{should not} be used to claim that a given set of settings is more realistic than some other. They can, however, be used to measure how each setting impacts the simulation's opinion dynamics, giving us clues regarding which parameters matter most and how they interact. The complete list of metrics is available in Table~\ref{tab:metrics_definitions}. We invite readers to refer to it as needed.
+
+\paragraph{Influence Analysis (Phase 2)} In Phase~2, we additionally compute a post-hoc semantic influence analysis. All simulation messages are embedded using TwHiN-BERT \cite{zhang2023twhinbertsociallyenrichedpretrainedlanguage}, and a weighted influence graph is constructed: for each message, candidate ``parent'' messages are identified from the author's observation history, and edge weights are computed as $w_{ij} \propto \text{cos}(\mathbf{e}_i, \mathbf{e}_j) \cdot \exp(-\beta \cdot \Delta t)$, combining semantic similarity with a Hawkes-process-style temporal decay. Edges exceeding a probability threshold (0.05) are retained as ``filtered'' edges, enabling cascade decomposition and component analysis. Global semantic drift is measured in sliding windows across the simulation timeline. Here, we set $\beta=0.05$.
+
+\subsection{Variables}
+\label{variables}
+
+\subsubsection{Phase 1: Broad Exploration} Our first set of experiments seeks to measure the relative impact and interactions of several variables on simulation metrics. The primary variables of interest are:
+
+\begin{itemize}
+    \item The \textbf{network topology}, i.e., how the follower graph is initialized. The options are an ER model \cite{erdos1959random} or a directed scale-free graph \cite{10.5555/644108.644133}, referred to as `random' and `power-law' going forward.
+    \item The \textbf{size of the network}: 64, 256, 1024, or 4096 agents.
+    \item Whether the network is initialized with \textbf{homophily} or not. If ``Yes'', agents with similar initial opinions are placed closer together in the network (see Appendix~\ref{appendix_homophily}). Otherwise, personas are assigned to nodes using a uniformly random mapping seeded by the run identifier.
+\end{itemize}
+Due to the infancy of the social simulation landscape, the ways in which parameters interact remain unclear. Evidence from our early experiments suggests that these interactions are often complex, and thus fixing our setup risks giving results that are only valid in one specific configuration and not generalizable. For this reason, we also vary five additional parameters:
+
+\begin{itemize}
+    \item The \textbf{base model} fine-tuned using BluePrint data \cite{bückkaeffer2025textttblueprintsocialmediauser}: \textit{Llama-3.1-Minitaur-8B}, \textit{Llama-3.1-8B}, \textit{Qwen2.5-7B-Instruct}, or \textit{gemma-3-4b-pt} \cite{binz2025foundation,qwen2,gemma_2025}.
+    \item Whether models \textbf{know about their own survey answers} or not.
+    \item Whether a biased \textbf{news agent} is present, placed at the highest-degree node.
+    \item \textbf{Proportions}: 4 presets controlling how the 25 LoRA archetypes are distributed across the agent population.
+    \item \textbf{Survey question}: the topic about which we ask models their opinions. We have a total of 3 possible survey questions, see \ref{appendix_survey_questions}.
+\end{itemize}
+
+In total, Phase~1 comprises 595 simulation roll-outs with randomized parameters among the options listed.
+
+\subsubsection{Phase 2: Controlled Study}
+\label{variables_phase_2}
+Phase~1's null behavioral results 
+(Section~\ref{sec:phase1}) motivated a follow-up designed to isolate the topology effect by holding confounds constant. All Phase~2 runs use Llama-3.1-Minitaur-8B as the base model, 256 agents, question~1 (\ref{appendix_survey_questions}), uniform proportions, one news agent, survey awareness off, and 25 LoRAs. The two varied factors are:
+
+\begin{itemize}
+    \item \textbf{Network topology}: seven graph models: Erd\H{o}s--R\'{e}nyi (random), Barab\'{a}si--Albert, Stochastic Block Model, cycle, power-law cluster, fully connected, and Forest Fire.
+    \item \textbf{Homophily}: on or off.
+\end{itemize}
+
+Phase~2 comprises 156 runs (15--27 per topology, 83 with homophily on, 73 off). While it identified statistically significant effects, the generality of these results is limited by the fixed settings. In order to improve the robustness of our claims, 385 additional runs were performed to rule-out confounding variables, test our conjectured explanations for some results and check generalizability over more models and survey questions. Details regarding our statistical analysis of results are available in the appendix (see \ref{appendix:statistical_methods}). Additionally, we conduct further runs to validate our Phase 2 findings in \ref{appendix:robustness}.
+
+
+\subsection{Experiment Setup}
+
+Our simulator is taken from \cite{bückkaeffer2026textitsiliconsocietycookbookdesign}. We instantiate a set of agents to populate our simulation and create a followership network connecting them together based on the relevant parameter selected for the run. Agents get attributed an ``action probability'' fixed for the duration of the simulation. At each simulation step, 10 agents are selected according to this action probability. The first 9 observe a recent thread in which someone they follow participated, while the last one has a 1/3 probability of creating a new thread and a 2/3 probability of replying to an already existing one. The simulations run for a total of 2500 steps, with agents surveyed every 250 steps starting at 0 (yielding 11 survey snapshots). Details regarding our choices of parameters are available in the appendix (see \ref{appendix:parameter_justification}). %We select 3 possible survey questions chosen to be maximally divisive (i.e., have agents' answer distributions vary widely, measured using Shannon Entropy).
+
+
+\section{Results}
+
+\subsection{Phase 1: Broad Exploration (595 Runs)}
+\label{sec:phase1}
+
+Phase~1 isolates the two network-level parameters (\texttt{graph\_type} and \texttt{homophily}) using dedicated contrasts across all 595 runs, which vary many additional parameters (base model, network size, survey awareness, news agent, proportions).
+
+\subsubsection{Behavioral Effects Are Near-Zero}
+
+Across the headline behavioral outcomes, both topology and homophily have small, non-significant effects (Table~\ref{tab:main_effects_near_zero}). With only two topology types and many confounding factors pooled, network topology and homophily do not materially alter the magnitude of social dynamics (opinion volatility, herding, or consensus change) in cross-sectional comparisons.
+
+\begin{table*}[t]
+\centering
+
+% -------- Subtable (a) --------
+\begin{subtable}{\textwidth}
+\centering
+\begin{tabular}{lcc}
+\toprule
+Metric & graph\_type effect (random $-$ powerlaw) & homophily effect (True $-$ False) \\
+\midrule
+Net Consensus Change & $-0.014$ ($p = 0.230$, $d = -0.10$) & $+0.004$ ($p = 0.716$, $d = +0.03$) \\
+Opinion Shift Rate & $+0.013$ ($p = 0.168$, $d = +0.11$) & $-0.003$ ($p = 0.775$, $d = -0.02$) \\
+Majority Follow Rate & $-0.008$ ($p = 0.422$, $d = -0.07$) & $-0.004$ ($p = 0.725$, $d = -0.03$) \\
+NASR & $+0.004$ ($p = 0.212$, $d = +0.10$) & $-0.002$ ($p = 0.601$, $d = -0.04$) \\
+\bottomrule
+\end{tabular}
+\caption{Main effects of graph type and homophily on behavioral metrics are small and not statistically significant.}
+\label{tab:main_effects_near_zero}
+\end{subtable}
+
+\medskip
+
+% -------- Subtable (b) --------
+\begin{subtable}{\textwidth}
+\centering
+\begin{tabular}{lcc}
+\toprule
+Delta metric & graph\_type effect (random $-$ powerlaw) & homophily effect (True $-$ False) \\
+\midrule
+$\Delta$ assortativity & $-0.0165$ ($p = 0.016$, $d = -0.20$) & $\mathbf{-0.0486}$ ($p < 0.001$, $d = -0.62$) \\
+$\Delta$ local agreement & $-0.0152$ ($p = 0.225$, ns) & $-0.0163$ ($p = 0.193$, ns) \\
+$\Delta$ cross-cutting edges & $+0.0133$ ($p = 0.290$, ns) & $+0.0179$ ($p = 0.155$, ns) \\
+\bottomrule
+\end{tabular}
+\caption{Homophily significantly reduces assortativity over time, with other temporal effects remaining small.}
+\label{tab:temporal_dynamics}
+\end{subtable}
+
+\caption{Phase~1: Effects of graph structure and homophily on behavioral metrics (a) and temporal dynamics (b), across 595 runs with two topologies (ER random and directed scale-free).}
+\label{tab:combined_tables}
+\end{table*}
+
+\subsubsection{Echo-Chamber Structure and Temporal Dynamics}
+
+Echo chamber metrics show sensitivity to homophilic graph initialization, but no correlation with graph structure:
+
+\begin{itemize}
+    \item Final assortativity by homophily: $0.0059$ (True) vs $-0.0040$ (False), $\Delta = +0.0099$, $p = 0.004$, $d = 0.24$
+    \item Graph type on final assortativity: $p = 0.375$ (ns)
+    \item Final local agreement, cross-cutting edges, same-option exposure: all graph\_type and homophily contrasts ns ($p \geq 0.20$)
+\end{itemize}
+
+Homophily leaves a small positive residual in final opinion assortativity, which constitutes an expected, sanity-check result (assortativity specifically measures opinion homophily). The strongest Phase~1 effects appear in \textbf{time-series deltas} (last $-$ first survey step), especially for assortativity (Table~\ref{tab:temporal_dynamics}). Cell means for $\Delta$ assortativity show a non-linear interaction (Table~\ref{tab:delta_assortativity_vs_homophily}): the interaction contrast is $IC = +0.0382$, confirming that power-law topology dampens the homophily-driven assortativity collapse, but only when homophily is active.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Homophily & False & True \\
+\midrule
+random & $+0.0021$ & $-0.0671$ \\
+powerlaw & $+0.0023$ & $-0.0286$ \\
+\bottomrule
+\end{tabular}
+\caption{$\Delta$ assortativity by homophily and topology. Homophily-initialized networks lose assortativity over time; power-law topology partially dampens this decay.}
+\label{tab:delta_assortativity_vs_homophily}
+\end{table}
+
+\subsubsection{Analysis of Variance}
+
+TODO: look at the anova results for the network topology, homophily and network size.
+%In order to identify which parameters matter most when designing an LLM-based social simulator, we compute which parameters explain most of the variance for each metric (Table \ref{tab:anova_factors}). The sum of all individual $\eta^2$ values falls well below 1.0 for each metric, reflecting both residual noise and potential interactions between parameters. We observe that the number of agents seems to have an important impact on Opinion Shift Rate; it is likely an artifact of the way in which we survey models (see \ref{appendix_osr_vs_num_agents}). On the other hand, seemingly important factors like the presence or absence of a biased news agent have no significant effect on consensus change ($p = 0.62$), opinion shift rate ($p = 0.23$), or BERT detectability ($p = 0.34$). A single news agent does not measurably alter simulation dynamics. This could be because the signal from a single agent is too weak to have an impact, or because network topology is limiting the spread.
+
+\subsubsection{Interpreting the Phase 1 Null}
+
+The near-zero behavioral effects admit several explanations: (a) variance between topologies was drowned by other more impactful parameters. For example, since different base models yield very different starting consensus values (e.g., Qwen on Q28 at 0.993 vs.\ Gemma on Q29 at 0.562), and pooling across four models may mask within-topology effects; (b) limited topology contrast, since with only two graph types, neither specifically designed to produce community structure, the topological variation may be insufficient; (c) per-agent action counts at larger network sizes (roughly 6 actions per agent at $N = 4096$) may be too few for structural effects to propagate. These considerations motivated the controlled design of Phase~2.
+
+
+%\begin{table*}[h]
+%\centering
+%\begin{tabular}{lccc}
+%\toprule
+%Metric & Dominant Factor & $\eta^2$ & Secondary Factor \\
+%\midrule
+%OSR & num\_agents & $\mathbf{0.230}$ & model (0.200) \\
+%NCC & model & $\mathbf{0.090}$ & ctx (0.028) \\
+%BERT acc. & model & $\mathbf{0.266}$ & ctx (0.264) \\
+%$\Delta$ assortativity & homophily & $\mathbf{0.088}$ & num\_agents(0.037) \\
+%\bottomrule
+%\end{tabular}
+%\caption{Variance explained by each parameter individually ($\eta^2$, single-factor)}
+%\label{tab:anova_factors}
+%\end{table*}
+
+% ====================================================================
+\subsection{Phase 2: Controlled Multi-Topology Analysis (156 Runs)}
+\label{sec:phase2}
+% ====================================================================
+
+Phase~2 holds all confounding variables constant and expands to seven graph topologies (see Section \ref{variables_phase_2}). Here, we observe that the graph topology emerges as an important driver of nearly every metric.
+
+\subsubsection{Behavioral Metrics}
+
+Table~\ref{tab:phase2_behavioral} reports the main results. Graph topology explains large and statistically significant variance fractions across all four behavioral metrics.
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{l cc cc}
+\toprule
+& \multicolumn{2}{c}{Graph-type} & \multicolumn{2}{c}{Homophily} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+Metric & $F$ ($\eta^2$) & $p_{\text{perm}}$ & $t$ ($d$) & $p$ (FDR $q$) \\
+\midrule
+Net Consensus Change & 9.92 (0.285) & 0.001 & 3.01 (0.48) & 0.003 (0.004) \\
+Opinion Shift Rate & 6.96 (0.219) & 0.001 & 0.98 (0.16) & 0.326 (ns) \\
+Majority Follow Rate & 3.08 (0.110) & 0.009 & 1.78 (0.29) & 0.075 (ns) \\
+Neighbor Alignment Shift Rate & \textbf{239.6 (0.906)} & 0.001 & $-$1.60 ($-$0.25) & 0.110 (ns) \\
+\bottomrule
+\end{tabular}
+\caption{Phase~2 behavioral metrics. Graph topology explains large variance fractions, with NASR showing the strongest effect ($\eta^2 = 0.906$). Homophily significantly stabilizes consensus ($d = 0.48$) but does not significantly affect other behavioral metrics.}
+\label{tab:phase2_behavioral}
+\end{table*}
+
+The most notable result is NASR: graph topology explains 90.6\% of its variance ($F = 239.6$, $p_{\text{perm}} = 0.001$). Table~\ref{tab:topology_attribution} reports per-topology means across key metrics. Cycle graphs produce the highest NASR (0.121) and the strongest consensus erosion (NCC $= -0.150$), while Barab\'{a}si--Albert produces the lowest NASR (0.068) and fully connected graphs show the least erosion (NCC $= -0.064$). For net consensus change, both topology ($\eta^2 = 0.285$) and homophily ($d = 0.48$, $p = 0.003$) are significant: homophily is associated with less negative consensus drift ($-0.102$ vs. $-0.125$).
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{l ccccc cc}
+\toprule
+& \multicolumn{5}{c}{Behavioral \& Echo Metrics} & \multicolumn{2}{c}{Influence} \\
+\cmidrule(lr){2-6} \cmidrule(lr){7-8}
+Topology & NCC & NASR & Asst. & $\Delta$Asst. & Local Agr. & Filt.\ Rate & Drift \\
+\midrule
+Cycle            & $-$0.150 & \textbf{0.121} & \textbf{0.156} & $-$0.225 & \textbf{0.582} & 0.0229 & 0.103 \\
+Forest Fire      & $-$0.080 & 0.115 & $-$0.003 & $-$0.001 & 0.527 & 0.0217 & \textbf{0.111} \\
+Fully Connected  & \textbf{$-$0.064} & 0.113 & $-$0.001 & \textbf{+0.002} & 0.548 & 0.0212 & 0.110 \\
+Stoch.\ Block    & $-$0.121 & 0.098 & 0.032 & $-$0.126 & 0.525 & \textbf{0.0235} & 0.108 \\
+Random (ER)      & $-$0.107 & 0.095 & 0.017 & $-$0.069 & 0.531 & 0.0235 & 0.109 \\
+PL Cluster       & $-$0.112 & 0.091 & 0.001 & $-$0.092 & 0.528 & 0.0230 & 0.107 \\
+Barab\'{a}si--Albert & $-$0.132 & 0.068 & 0.024 & $-$0.155 & 0.538 & 0.0233 & 0.107 \\
+\bottomrule
+\end{tabular}
+\caption{Per-topology means for key metrics (Phase~2). NCC = Net Consensus Change, Asst.\ = final assortativity, $\Delta$Asst.\ = assortativity change (last $-$ first survey), Local Agr.\ = final local agreement, Filt.\ Rate = filtered-edge rate, Drift = global semantic drift mean. All metrics show significant graph-type effects ($p_{\text{perm}} \leq 0.009$).}
+\label{tab:topology_attribution}
+\end{table*}
+
+We note, however, that NASR's construction makes it partly mechanically sensitive to topology. In a cycle graph, the minimal two-neighbor structure means any opinion shift is very likely to match one neighbor's opinion, inflating NASR relative to denser topologies. In a fully connected graph, the ``neighbor majority'' collapses to the global majority, making NASR and MFR conceptually equivalent. The $\eta^2 = 0.906$ for NASR therefore reflects both genuine behavioral differences and this structural sensitivity. NCC ($\eta^2 = 0.285$), which aggregates consensus at the population level without reference to neighborhood structure, provides the more conservative and topology-neutral estimate of the behavioral impact of graph structure.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=7pt,
+    width=\columnwidth,
+    height=5cm,
+    ylabel={NASR},
+    symbolic x coords={BA, PLC, ER, SBM, FC, FF, Cycle},
+    xtick=data,
+    x tick label style={rotate=45, anchor=east, font=\footnotesize},
+    ymin=0.05, ymax=0.14,
+    ytick={0.06, 0.08, 0.10, 0.12, 0.14},
+    nodes near coords,
+    nodes near coords style={font=\tiny, /pgf/number format/fixed, /pgf/number format/precision=3},
+    enlarge x limits=0.12,
+]
+\addplot[fill=blue!50, draw=blue!70] coordinates {
+    (BA, 0.068) (PLC, 0.091) (ER, 0.095) (SBM, 0.098) (FC, 0.113) (FF, 0.115) (Cycle, 0.121)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Per-topology NASR means in Phase~2, ordered by increasing NASR. BA = Barab\'{a}si--Albert, PLC = Power-law Cluster, ER = Erd\H{o}s--R\'{e}nyi, SBM = Stochastic Block Model, FC = Fully Connected, FF = Forest Fire. The 77\% relative range between BA (0.068) and Cycle (0.121) illustrates the practical impact of topology choice.}
+\label{fig:nasr_topology}
+\end{figure}
+
+\subsubsection{Echo-Chamber Metrics}
+\label{sec:phase2_echo}
+
+In Phase~2, both topology and homophily produce large, significant effects on echo-chamber structure (Table~\ref{tab:phase2_echo}). The temporal deltas show that homophily-initialized networks undergo substantial structural change:
+
+\begin{itemize}
+    \item $\Delta$ assortativity: $-0.002$ (no homophily) vs.\ $-0.194$ (homophily), $d = -1.90$
+    \item $\Delta$ local agreement: $-0.066$ vs.\ $-0.144$, $d = -1.35$
+    \item $\Delta$ cross-cutting edges: $+0.063$ vs.\ $+0.151$, $d = +1.60$
+\end{itemize}
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{l cc cc}
+\toprule
+& \multicolumn{2}{c}{Graph-type effect} & \multicolumn{2}{c}{Homophily effect} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+Metric & $\eta^2$ & $p_{\text{perm}}$ & $d$ & $p$ (FDR $q$) \\
+\midrule
+Final assortativity & 0.363 & 0.001 & 0.81 & $< 10^{-6}$ \\
+Final local agreement & 0.166 & 0.001 & 1.13 & $< 10^{-12}$ \\
+Final cross-cutting & 0.218 & 0.001 & $-$0.99 & $< 10^{-9}$ \\
+Exposure diversity & 0.308 & 0.001 & $-$0.50 & 0.001 \\
+\bottomrule
+\end{tabular}
+\caption{Phase~2 echo-chamber metrics (final snapshot). Both factors produce significant effects. Homophily effects are very large (Cohen's $d$ up to 1.13).}
+\label{tab:phase2_echo}
+\end{table*}
+
+Graph topology also significantly modulates these temporal changes (all $\Delta$ metrics show graph $p_{\text{perm}} \leq 0.002$). As shown in Table~\ref{tab:topology_attribution}, cycle graphs exhibit the largest assortativity decay ($\Delta = -0.225$), while fully connected graphs remain nearly stable ($\Delta = +0.002$). This indicates that LLM agents do not simply preserve the opinion clustering imposed at initialization; they shift opinions in ways that erode echo-chamber structure. Hub-dominated topologies partially resist this erosion by concentrating influence through a small number of highly connected nodes, which may act to repeatedly reinforce the dominant local opinion. Topologies with more uniform connectivity allow more diverse opinion signals to reach each agent, accelerating the breakdown of initial clustering.
+
+\subsubsection{Influence Metrics}
+\label{sec:phase2_influence}
+
+The semantic influence analysis reveals that topology shapes information-flow (Table~\ref{tab:phase2_influence}).
+
+\begin{table*}[t]
+\centering
+\begin{tabular}{l cc cc}
+\toprule
+& \multicolumn{2}{c}{Graph-type effect} & \multicolumn{2}{c}{Homophily effect} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5}
+Metric & $\eta^2$ & $p_{\text{perm}}$ & $d$ & FDR $q$ \\
+\midrule
+Influence edge count & 0.855 & 0.001 & $-$0.62 & 0.0004 \\
+Filtered edge count & 0.919 & 0.001 & --- & 0.071 (ns) \\
+Filtered-edge rate & 0.697 & 0.001 & 0.92 & $< 10^{-8}$ \\
+Cascade roots & 0.287 & 0.001 & --- & 0.073 (ns) \\
+Global drift mean & 0.289 & 0.001 & 0.38 & 0.020 \\
+\bottomrule
+\end{tabular}
+\caption{Phase~2 influence metrics. Graph topology is the dominant factor, explaining 85.5--91.9\% of variance in edge-based influence measures.}
+\label{tab:phase2_influence}
+\end{table*}
+
+Graph topology accounts for up to 91.9\% of the variance in filtered edge count (i.e. the number of high-confidence influence relationships). Homophily significantly increases the filtered-edge rate ($d = 0.92$): when agents start with similar-minded neighbors, a greater proportion of influence edges exceed the significance threshold. This could be because like-minded agents influence each-other more, but it is also possible that our measurement method misinterprets preexisting agreement for causal influence. As shown in Table~\ref{tab:topology_attribution}, stochastic block and random graphs have the highest filtered-edge rates (0.0235), while fully connected graphs have the lowest (0.0212). Forest fire graphs produce the highest global semantic drift (0.111), while cycle graphs produce the lowest (0.103).
+
+\subsubsection{Cross-Domain Correlations}
+
+The influence metrics correlate meaningfully with behavioral outcomes.
+
+Higher filtered-edge rates (more concentrated influence pathways) are associated with greater opinion shift rate ($r = 0.465$, $p < 10^{-10}$), consistent with both metrics being proxies of inter-agent influence. Higher global semantic drift correlates with net consensus change ($r = 0.482$, $p < 10^{-11}$), which suggests that our embedding-based semantic metrics do capture opinions to a degree. The negative correlation between the largest influence component size and net consensus change ($r = -0.297$, $p < 10^{-4}$) suggests that when information propagates through a single large cascade, it may concentrate opinion pressure in ways that reduce diversity. Together, these correlations support the interpretation that topology affects behavioral outcomes in part by shaping the structure of information flow.
+
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{LLM Generative Biases as a Confound}
+
+The failure of Phase~1 to detect topology effects is as informative as Phase~2's strong detections. In Phase~1's heterogeneous design, between-model variance dominates: consensus levels range from 0.993 (Qwen on Q28) to 0.562 (Gemma on Q29), and this LLM-specific variation dwarfs any structural signal from just two topology types. The practical implication is that LLM generative biases must be treated as a confound and controlled for before structural effects can be reliably measured. This is an inherent challenge for simulation studies that vary multiple parameters simultaneously: a null topology result in a heterogeneous design is not evidence that topology does not matter, but may simply reflect that the topology signal is masked. Phase~2's strong effects ($\eta^2$ up to 0.906) emerge only once this confound is removed, and come with the trade-off of reduced generalizability to other LLM families.
+
+\subsection{Topology as a Non-Neutral Design Choice}
+
+For researchers using LLM-based social simulations as sociological sandboxes, the attribution results in Table~\ref{tab:topology_attribution} carry a direct practical message: topology initialization is not a neutral design decision. Across otherwise identical conditions, NASR varies by almost a factor of two between the lowest (BA, 0.068) and highest (cycle, 0.121) topology, and consensus erosion varies by more than a factor of two. A simulation built on a BA graph will produce qualitatively different dynamics from one built on a cycle or fully connected graph, and reported findings will reflect this choice whether or not the researcher intends them to. Studies that do not justify and conduct sensitivity analysis over their topology choice risk drawing conclusions that are specific to that initialization.
+
+The homophily erosion results add a related concern. Researchers who design experiments to study echo-chamber formation or persistence may find that LLM agents are structurally non-persistent: initial opinion clustering degrades substantially over the simulation ($d = -1.90$ for $\Delta$ assortativity), even though homophily leaves a residual signal in final metrics. Studies that measure only final snapshots will underestimate the degree of structural change. Whether this erosion reflects a limitation of current LLM architectures, agents rationally updating on diverse content, or a property of the specific simulator's survey mechanism remains an open question, but it is a property researchers should be aware of when interpreting results.
+
+\subsection{Influence Analysis as a Diagnostic Tool}
+
+The post-hoc semantic influence pipeline introduced here proved capable of capturing topology-dependent information-flow patterns that correlate with behavioral outcomes. The fact that these correlations are significant ($r = 0.465$, $r = 0.482$) and topology-dependent suggests that influence-derived metrics provide complementary information to survey-response metrics. This pipeline is general: it operates on message embeddings and temporal metadata, making it applicable to other LLM simulation frameworks that record message histories. Applying it across frameworks could help identify whether topology-behavior coupling is specific to this simulator or a broader property of LLM social dynamics.
+
+\subsection{Future Work}
+
+%The most immediate extension is a multi-model Phase~2 replication to assess whether topology effects generalize across LLM families. 
+Testing LLM-driven graph generation methods (e.g., GAG-General) would situate classical mathematical topologies relative to learned ones and test whether LLM-generated graphs introduce distinct interaction patterns. Longer simulations would clarify whether echo-chamber erosion is a transient or persistent phenomenon. Finally, introducing a recommendation algorithm as a structural layer above the followership graph would more closely replicate real social media architectures, and its interaction with static topology effects would be informative for simulation design.
+
+\section{Conclusions}
+
+We investigated how network topology affects opinion dynamics in LLM-based social simulations through a two-phase study across 751 simulation roll-outs. Our key findings are:
+
+\begin{enumerate}
+    \item \textbf{Topology is the dominant driver of opinion dynamics} when confounding variables are controlled. Graph type explains up to 90.6\% of variance in neighbor-alignment behavior and 28.5\% of consensus change variance, effects that were invisible in Phase~1's less controlled design.
+
+    \item \textbf{The Phase~1 null result was an artifact of experimental design.} Between-model variance and limited topology contrast masked the structural signal. This has implications for the design of future LLM simulation studies: controlling for LLM generative biases is necessary before structural effects can be reliably detected.
+
+    \item \textbf{Homophily creates echo-chamber structure that systematically erodes.} Homophily-initialized networks show large initial clustering effects ($d$ up to 1.13) that decay substantially ($d = -1.90$ for $\Delta$ assortativity), with erosion rate modulated by topology.
+
+    \item \textbf{Semantic influence analysis reveals topology-dependent information flow} that correlates with behavioral outcomes, suggesting a mechanistic pathway from network structure through influence patterns to opinion dynamics.
+\end{enumerate}
+
+Together, these findings establish that network topology is a fundamental design parameter in LLM social simulations, not a neutral initialization choice, and that its effects are large, statistically robust, and consistent with the structural properties of each graph model. Future work can delve further into these phenomena.
+
+\section{Limitations}
+
+%\paragraph{Single base model in Phase~2.} Phase~2 uses only Llama-3.1-Minitaur-8B. While this controls for between-model variance, the results may not generalize to other LLM families. The strong Phase~1 evidence that base model explains more behavioral variance than topology in heterogeneous settings underscores this caveat. Similar comments are true of other parameters we fixed in Phase~2.
+
+\paragraph{News-agent placement.} The biased news agent is placed at the highest-degree node in all runs. Because degree centrality differs across topologies, the news agent's reach is not constant across conditions. However, topology effects are consistent across both homophily conditions and across metrics where the news agent has no direct causal pathway (e.g., NASR is computed from survey responses), suggesting that topology effects are not solely driven by news-agent reach.
+
+\paragraph{Simulation duration.} At 2500 steps with 10 agents per step, Phase~2's 256-agent runs yield roughly 97 actions per agent. Longer simulations might clarify whether the observed echo-chamber erosion is a transient warm-up effect or a stable long-run property. However, due to time, scope, and resource constraints, we don't conduct this analysis here.
+
+\paragraph{LLM-driven topologies. and Deep-Learning based Topologies} We do not test LLM-driven graph generation methods such as GAG-General \cite{peng2026gdgb}, or deep-learning generated topology structures. These may show other significant and interesting variations in comparison to our setup. Our study remains limited to classical network generation algorithms.
+
+
+\section{Ethical Considerations}
+
+Our work studies how network structure shapes opinion dynamics in simulated social environments. The intended application is to inform the design of more rigorous LLM social simulations. In general, malicious actors typically can't control network structures in social media. As such, we don't expect strong dual-use concerns. However, we acknowledge that insights about how network topology amplifies or suppresses opinion shifts could, in principle, inform the design of more effective manipulation campaigns on real social platforms. We believe that understanding these structural dynamics is a necessary prerequisite for developing effective countermeasures, and that the controlled, artificial nature of our simulations (using LLM agents with synthetic personas, not real users) limits direct transferability. Nonetheless, researchers building on this work should consider dual-use implications and prioritize defensive applications.
+
+\bibliography{EMNLP_submission/custom}
+
+
+\appendix
+\section{Appendix}
+
+\subsection{Homophily}
+\label{appendix_homophily}
+
+TODO: This is copied word for word from the cookbook. It needs to be at LEAST paraphrased.
+
+In this simulator, graph initialization with homophily is implemented as a spatial-opinion alignment strategy from \citet{bückkaeffer2026textitsiliconsocietycookbookdesign}. The process ensures that agents with similar ideological profiles are positioned in the same "neighborhoods" of the social graph.
+
+The exact algorithm follows these steps:
+
+\begin{enumerate}
+    \item \textbf{Spatial Embedding}: We first compute a 2D spatial layout of the social graph using the Fruchterman-Reingold spring algorithm implemented in networkx. This algorithm naturally clusters well-connected nodes together in Euclidean space.
+    \item \textbf{Node Ordering}: All nodes in the graph are then sorted based on their X-coordinate from this spatial layout. This creates a one-dimensional "left-to-right" ordering of the network's structural regions.
+    \item \textbf{Opinion Scoring}: For every agent (or LLM adapter profile), the system calculates an expected opinion score based on its baseline probability distribution for specific survey questions (e.g., scoring a "Strongly Disagree" as 0 and "Strongly Agree" as 4).
+    \item \textbf{Agent Sorting}: The agent population is grouped by their model profiles and sorted by their mean opinion scores, creating an ideological spectrum from one extreme to the other.
+    \item \textbf{Interleaved Assignment}: Finally, the spatially ordered nodes are mapped directly to the opinion-sorted agents. 
+\end{enumerate}
+
+\textbf{Result}: Agents with the lowest opinion scores are assigned to the "leftmost" nodes of the graph's spatial layout, while agents with the highest scores are assigned to the "rightmost" nodes. Because the spring layout places connected nodes near each other, this mapping ensures that neighbors in the social graph are significantly more likely to share similar initial opinions, creating the initial structural homophily required for studying echo chamber formation.
+
+\subsection{Metrics}
+
+\begin{table*}[h]
+\centering
+\small
+\begin{tabular}{|l|c|p{5.8cm}|c|}
+\hline
+\textbf{Metric} & \textbf{Acronym} & \textbf{Explanation} & \textbf{Formula} \\ \hline
+\multicolumn{4}{|l|}{\textit{Behavioral (Herd Effect) Metrics}} \\ \hline
+Consensus & --- & The proportion of the population holding the most popular opinion at a specific time step. & $\frac{N_{\max}}{N_{\text{total}}}$ \\ \hline
+Net Consensus Change & NCC & The total convergence or divergence of the population over the entire simulation. & $C_{t_f} - C_{t_0}$ \\ \hline
+Opinion Shift Rate & OSR & The fraction of the population that changed their opinion between consecutive survey snapshots. & $\frac{N_{\text{changed}}}{N_{\text{total}}}$ \\ \hline
+Majority Follow Rate & MFR & Of agents who changed their minds, the fraction that adopted the current global majority opinion. & $\frac{N_{\text{changed} \to \text{maj}}}{N_{\text{changed}}}$ \\ \hline
+Neighbor Alignment Shift Rate & NASR & The fraction of the total population that changed their opinion to match the majority of their direct social neighbors. & $\frac{N_{\text{changed} \to \text{nb\_maj}}}{N_{\text{total}}}$ \\ \hline
+\multicolumn{4}{|l|}{\textit{Echo-Chamber (Structural) Metrics}} \\ \hline
+Assortativity & --- & The tendency of agents to be connected to others with the same opinion (Network Assortativity Coefficient). & $\frac{\text{Tr}(\mathbf{e}) - \lVert \mathbf{e}^2 \rVert}{1 - \lVert \mathbf{e}^2 \rVert}$ \\ \hline
+Local Agreement & --- & On average, what fraction of an agent's neighbors share the same opinion. & $\frac{1}{N}\sum_{i}\frac{|\{j \in \mathcal{N}_i : o_j = o_i\}|}{|\mathcal{N}_i|}$ \\ \hline
+Cross-Cutting Edge Fraction & --- & The fraction of edges connecting agents who hold different opinions. & $\frac{|\{(i,j) \in E : o_i \neq o_j\}|}{|E|}$ \\ \hline
+Exposure Diversity & --- & Mean Shannon entropy of the opinion distribution in threads each agent observed. & $\frac{1}{N}\sum_i H(\mathbf{p}_i)$ \\ \hline
+\multicolumn{4}{|l|}{\textit{Influence Metrics (Phase 2 only)}} \\ \hline
+Filtered-Edge Rate & --- & The proportion of influence graph edges exceeding a probability threshold, indicating strong semantic influence. & $\frac{|E_{\text{filtered}}|}{|E_{\text{total}}|}$ \\ \hline
+Global Semantic Drift & --- & Mean cosine-distance drift of messages from their exposure context, measured in sliding windows. & $\bar{d}_{\text{window}}$ \\ \hline
+\end{tabular}
+\caption{Behavioral, structural, and influence metrics. Influence metrics are computed post-hoc using TwHiN-BERT embeddings (Phase~2 only).}
+\label{tab:metrics_definitions}
+\end{table*}
+
+\subsection{Survey questions}
+\label{appendix_survey_questions}
+
+The question we ask models in the simulations is one of the following
+\begin{enumerate}
+    \item Should it be legal to use copyrighted material to train artificial intelligence models? You may only answer with 'Yes' or 'No'.
+    \item Is it acceptable to use genetic engineering to enhance human intelligence? You may only answer with 'Yes' or 'No'.
+    \item Would you rather vote for a candidate who prioritizes economic growth over environmental protection, or a candidate who prioritizes environmental protection over economic growth? You may only answer with 'Economic Growth' or 'Environmental Protection'.
+\end{enumerate}
+
+These questions are taken from \citet{bückkaeffer2026textitsiliconsocietycookbookdesign}.
+
+\subsection{Graph-generation algorithm parameters}
+TODO
+
+Our initial phase 2 study used the following parameters counts
+
+After realizing that graph density (i.e. the average degree of each node) may be a confounding variable, we conducted an additional  
+
+\subsection{Parameter Justification} 
+\label{appendix:parameter_justification}
+Using BluePrint \cite{bückkaeffer2025textttblueprintsocialmediauser}, we find that, on average, users post 24.3 messages per month. With 2500 steps and 10 agents acting per step, the simulation produces approximately 25,000 total actions. For 256 agents (Phase~2), this yields roughly 97 actions per agent, sufficient for multiple opinion-revision opportunities. For Phase~1's larger networks (1024 or 4096 agents), per-agent action counts drop to roughly 24 and 6 respectively, which we acknowledge as a limitation at larger scales (see Section~\ref{sec:discussion}). Each simulation runs on either an A100 or an RTX8000 GPU and takes between 2 and 16 hours to complete.
+
+\subsection{Statistical Methods}
+\label{appendix:statistical_methods}
+In Phase~1, effects are tested using Welch's $t$-tests (normal approximation) with a conservative threshold of $p \leq 0.01$ to guard against multiple comparisons. In Phase~2, we adopt a multi-factor framework: graph-type effects (7 groups) are tested using one-way ANOVA $F$-statistics with permutation $p$-values (2000 permutations); homophily effects use Welch $t$-tests; and all $p$-values are corrected using Benjamini--Hochberg FDR across the full test battery. We report $\eta^2$ (eta-squared) as a measure of effect size for graph-type effects and Cohen's $d$ for homophily effects. Two-factor variance decomposition reports $\eta^2_{\text{graph}}$, $\eta^2_{\text{hom}}$, and $\eta^2_{\text{interaction}}$ for each metric.
+
+\section{Robustness Analyses (417 Runs)}
+\label{appendix:robustness}
+
+To assess the generalizability of Phase~2's findings, we conduct 417 additional simulation runs varying the base model, survey question, and news-agent presence while maintaining all other Phase~2 conditions. All robustness runs use density-controlled graphs with approximately matched mean degree ($\approx 16$) for the five parameterizable topologies. Statistical tests follow the same framework as Phase~2; all 48 tests across the robustness battery are jointly corrected using Benjamini--Hochberg FDR ($\alpha = 0.05$). Detailed per-condition breakdowns are provided in Appendix~\ref{appendix:robustness_detail}. Figure~\ref{fig:nasr_robustness} summarizes the NASR topology effect size across all conditions, and Table~\ref{tab:robustness_summary} reports the key statistics.
+
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{l c c c c}
+\toprule
+Condition & $N$ & $\eta^2_{\text{NASR}}$ & $q$ & $\eta^2_{\text{NCC}}$ \\
+\midrule
+Phase~2 (Minitaur) & 156 & 0.906 & --- & 0.285 \\
+\midrule
+Gemma-3-4B & 77 & 0.785 & 0.003 & 0.098\textsuperscript{ns} \\
+Llama-3.1-8B & 57 & 0.599 & 0.003 & 0.163\textsuperscript{ns} \\
+Qwen2.5-7B & 76 & 0.400 & 0.006 & 0.162\textsuperscript{ns} \\
+\midrule
+Q25 & 31 & 0.734 & 0.003 & 0.501* \\
+Q28 (ctrl) & 32 & 0.736 & 0.003 & 0.409\textsuperscript{ns} \\
+Q29 & 42 & 0.570 & 0.003 & 0.321\textsuperscript{ns} \\
+\midrule
+No news agent & 70 & 0.835 & 0.003 & 0.238* \\
+\bottomrule
+\end{tabular}
+\caption{NASR and NCC topology effect sizes across robustness conditions. All NASR effects are FDR-significant ($q < 0.01$). NCC effects marked with * survive FDR correction; \textsuperscript{ns} = not significant after correction. Phase~2 row is the reference condition.}
+\label{tab:robustness_summary}
+\end{table}
+
+\subsubsection{Multi-Model Generalization}
+
+We replicate Phase~2 across three additional LLM families: Gemma-3-4B, Llama-3.1-8B, and Qwen2.5-7B-Instruct (210 runs total, 7 topologies $\times$ 2 homophily conditions $\times$ $\approx$5 replications each). The NASR topology effect is FDR-significant for every model tested ($q < 0.01$; Table~\ref{tab:robustness_summary}). Effect sizes range from $\eta^2 = 0.400$ (Qwen) to $\eta^2 = 0.785$ (Gemma), all substantially lower than Phase~2's $\eta^2 = 0.906$ but still large. The per-topology ordering is qualitatively stable across models: cycle and fully connected graphs consistently produce the highest NASR, while power-law cluster and BA consistently rank lowest (Kendall $\tau$ = 0.52--0.62 between model pairs; see Appendix~\ref{appendix:robustness_detail} for full per-topology means). NCC topology effects do not survive FDR correction for any of the three new models, consistent with Phase~1's finding that base model dominates NCC variance. The NASR topology conclusion extends across LLM families; the NCC conclusion remains model-dependent.
+
+\subsubsection{Density Control}
+
+Within the five parameterizable topologies (ER, BA, SBM, power-law cluster, Forest Fire), all matched to approximately 16 mean degree, density does not significantly predict NASR ($r = 0.063$, $q = 0.364$). Forest Fire has the widest density range (mean degree 5.46--34.40, SD = 8.00) and still shows no within-topology density-NASR association ($r = 0.105$, $q = 0.507$). These results indicate that topology effects within the parameterizable group are driven by structural properties (clustering, community organization, preferential attachment) rather than edge count. Cycle (mean degree 2) and fully connected (mean degree $N - 1$) cannot be density-matched by construction; their behavioral extremes are consistent with structural rather than density-driven explanations. Full density measurements are reported in Appendix~\ref{appendix:robustness_detail}.
+
+\subsubsection{Stylistic Realism}
+
+TwHiN-BERT classifier accuracy across topologies, using density-controlled baseline runs ($n = 32$), averages 0.902 (SD = 0.035), ranging from 0.872 (fully connected) to 0.933 (Forest Fire). After FDR correction, topology does not significantly modulate realism ($F = 2.78$, $q = 0.089$). This confirms that the behavioral differences reported across topologies are not confounded by differential text realism.
+
+\subsubsection{Cross-Question Robustness}
+
+We replicate Phase~2 across three survey questions: Q25 (genetic enhancements), Q28 (AI copyright), and Q29 (environmental protection), totaling 105 runs. Initial conditions differ substantially: Q25 and Q28 start at moderate majority ($\approx$ 0.56), while Q29 starts at full consensus (1.000). Despite these differences, the NASR topology effect is FDR-significant for all three questions ($q = 0.003$ each; $\eta^2$ = 0.734, 0.736, 0.570 respectively). The per-topology NASR ordering is highly consistent: the Q28--Q29 rank correlation is perfect (Kendall $\tau = 1.0$, $q = 0.008$), and Q25 pairs show $\tau = 0.714$ ($q = 0.061$). The Q29 floor effect compresses absolute NASR values (range 0.018--0.027) but does not disrupt the relative topology ordering, confirming that the NASR topology mechanism operates independently of the question's initial distribution.
+
+\subsubsection{News-Agent Ablation}
+
+We conduct 70 runs without any news agent, all other Phase~2 conditions held constant. The NASR topology effect remains large and FDR-significant ($\eta^2 = 0.835$, $q = 0.003$). Direct comparison with news-agent runs confirms that the news agent has no significant effect on NASR ($\Delta = 0.003$, $q = 0.483$, $d = 0.18$) but does significantly raise NCC ($d = 0.57$, $q = 0.031$) and OSR ($d = 0.72$, $q = 0.008$). This dissociation is expected: NASR measures alignment with direct social neighbors, a structural property independent of a single broadcaster node, while NCC and OSR are population-level aggregates sensitive to persistent opinion pressure. The most notable per-topology shift without the news agent is BA, whose NASR increases from 0.068 to 0.093, consistent with the news agent's high-degree placement monopolizing the BA hub's information environment (see Appendix~\ref{appendix:robustness_detail} for full per-topology comparison).
+% \section{Additional Experiments and Analysis}
+
+% TODO: This entire section needs to be re-formatted, re-written, and integrated into the main body
+
+% This document reports all additional experiments and statistical analyses conducted in response to possible robustness concerns. Every hypothesis test is registered in a central battery (48 tests total); Benjamini--Hochberg FDR correction is applied across the entire battery and both the raw permutation/parametric p-value and the adjusted q-value are reported. Significance markers refer to q unless otherwise stated.
+
+% \subsection{Experimental Setup (Overview)}
+
+% Three new batches of runs were conducted, all using 256 agents, Q28 (ai-copyright), survey-awareness off, uniform LoRA proportions, and density-controlled graphs ($\sim 16$ mean degree for the five parameterizable topologies). Graph types are the same seven as Phase 2: Cycle, Forest Fire, Fully Connected, Stochastic Block Model (SBM), Random (ER), Power-law Cluster (PLC), and Barabási--Albert (BA).
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+Batch & Purpose & N runs & Variable \\
+\midrule
+\texttt{emnlp2026model} & Comment 1 & 210 & Base model: Gemma, Llama-3.1-8B, Qwen2.5-7B \\
+\texttt{emnlp2026nonews} & Comment 5 & 70 & No news agent (vs.\ Phase 2 single news agent) \\
+\texttt{emnlp2026question} & Comment 4 & 105 & Survey question: Q25, Q28, Q29 \\
+\texttt{emnlp\_visualizer\_baseline} & Comments 2, 3 & 32 & Q28, Minitaur --- density-controlled Phase 2 analogue \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% All new runs use the same base model as Phase 2 (Minitaur) except where the model is the experimental variable.
+
+% \paragraph{Statistical methods.}
+% Graph-type effects are tested with one-way permutation ANOVA (2000 permutations, seed 42). Two-group comparisons use Welch's t-test. Rank-ordering consistency uses Kendall's $\tau$ and Spearman's $r_s$. All 48 raw p-values are jointly corrected using the Benjamini--Hochberg procedure ($\alpha = 0.05$). The full corrected test registry is in the appendix.
+
+% \subsection{Comment 1: Single Base Model in Phase 2}
+
+% \textbf{Concern (AC + all reviewers):} Phase 2 uses only Llama-3.1-Minitaur-8B. Given that Phase 1 shows base model is the largest single variance driver, conclusions about ``topology effects'' might not generalize.
+
+% \paragraph{Approach.}
+% 210 new runs covering 3 additional LLM families (Gemma-3-4B, Llama-3.1-8B, Qwen2.5-7B-Instruct), each with 7 topologies $\times$ 2 homophily conditions $\times \approx 5$ replications, all other parameters identical to Phase 2.
+
+% \subsubsection{1.1 NASR topology effect generalizes robustly across models}
+
+% For every new model, graph topology explains a large, statistically significant fraction of NASR variance (permutation ANOVA):
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{lllllll}
+\toprule
+Model & N & F & $\eta^2$ & p (perm) & q (BH) & \\
+\midrule
+Phase 2: Minitaur (paper) & 156 & 239.6 & \textbf{0.906} & $< 0.001$ & --- & (reference) \\
+Gemma-3-4B & 77 & 42.7 & \textbf{0.785} & $< 0.001$ & 0.003 & ** \\
+Llama-3.1-8B & 57 & 12.4 & \textbf{0.599} & $< 0.001$ & 0.003 & ** \\
+Qwen2.5-7B & 76 & 7.7 & \textbf{0.400} & $< 0.001$ & 0.006 & ** \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% All three new models yield $q < 0.01$. The NASR topology effect survives FDR correction across the full 48-test battery for every LLM family tested.
+
+% \subsubsection{1.2 Full metric breakdown by model}
+
+\begin{table*}
+\centering
+\begin{tabular}{lllllll}
+\toprule
+Model & Metric & F & $\eta^2$ & p (perm) & q (BH) & \\
+\midrule
+Gemma & NASR & 42.7 & 0.785 & $< 0.001$ & 0.003 & ** \\
+Gemma & NCC & 1.26 & 0.098 & 0.291 & 0.364 & ns \\
+Gemma & OSR & 1.29 & 0.099 & 0.255 & 0.350 & ns \\
+Gemma & MFR & 2.28 & 0.163 & 0.045 & 0.089 & ns \\
+Llama-3.1 & NASR & 12.4 & 0.599 & $< 0.001$ & 0.003 & ** \\
+Llama-3.1 & NCC & 1.63 & 0.163 & 0.159 & 0.231 & ns \\
+Llama-3.1 & OSR & 1.90 & 0.186 & 0.094 & 0.158 & ns \\
+Llama-3.1 & MFR & 2.03 & 0.196 & 0.077 & 0.138 & ns \\
+Qwen & NASR & 7.65 & 0.400 & $< 0.001$ & 0.006 & ** \\
+Qwen & NCC & 2.22 & 0.162 & 0.043 & 0.089 & ns \\
+Qwen & OSR & 4.36 & 0.275 & 0.001 & 0.008 & ** \\
+Qwen & MFR & 1.76 & 0.133 & 0.121 & 0.181 & ns \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% NASR and (for Qwen) OSR topology effects survive FDR correction. NCC and MFR effects do not. This is consistent with Phase 1's finding that base model is the dominant NCC driver.
+
+% \subsubsection{1.3 Per-topology NASR means}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{lllll}
+\toprule
+Topology & Phase 2 (Minitaur) & Gemma & Llama-3.1 & Qwen \\
+\midrule
+Cycle & \textbf{0.121} & \textbf{0.114} (n=9) & 0.073 (n=7) & 0.061 (n=8) \\
+Forest Fire & 0.115 & 0.077 (n=9) & 0.062 (n=6) & 0.047 (n=17) \\
+Fully Connected & 0.113 & 0.111 (n=8) & \textbf{0.085} (n=5) & 0.049 (n=13) \\
+Stoch.\ Block & 0.098 & 0.092 (n=9) & 0.076 (n=15) & \textbf{0.070} (n=8) \\
+Random (ER) & 0.095 & 0.094 (n=15) & 0.075 (n=5) & 0.051 (n=13) \\
+PL Cluster & 0.091 & 0.077 (n=15) & 0.063 (n=10) & 0.048 (n=9) \\
+Barabási--Albert & \textbf{0.068} & 0.078 (n=12) & 0.065 (n=9) & 0.050 (n=8) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsubsection{1.4 Rank-ordering consistency across model pairs (NASR)}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llllll}
+\toprule
+Pair & Spearman $r_s$ & Kendall $\tau$ & p & q (BH) & \\
+\midrule
+Gemma vs Llama-3.1 & 0.750 & 0.619 & 0.051 & 0.094 & ns \\
+Gemma vs Qwen & 0.643 & 0.524 & 0.099 & 0.158 & ns \\
+Llama-3.1 vs Qwen & 0.607 & 0.524 & 0.099 & 0.158 & ns \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% With only 7 topology levels, Kendall $\tau$ requires near-perfect agreement to reach significance. No cross-model pair reaches $q < 0.05$ after FDR correction. Nevertheless, the point estimates are substantive and directionally consistent.
+
+% \subsubsection{1.5 Interpretation}
+
+% The NASR topology effect --- the metric most structurally grounded --- is robust and FDR-significant for all three new LLM families. The NCC topology effect does not survive FDR correction for any of the three new models.
+
+% \subsection{Comment 2: Graph Density and Parameterization}
+
+% \textbf{Concern (AC + reviewer XG2M):} Seven topologies differ radically in edge count; graph parameters were not reported; ``topology effect'' may conflate graph family with mean degree.
+
+% \subsubsection{2.1 Reported parameters and actual densities}
+
+% All new runs include 257 nodes (256 agents + 1 news agent). Mean degree $= 2 \times \text{edges} / \text{nodes}$.
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llllll}
+\toprule
+Topology & N runs & Mean degree & SD & Min & Max \\
+\midrule
+Cycle & 54 & 2.00 & 0.00 & 2.00 & 2.00 \\
+Fully Connected & 54 & 255.84 & 0.38 & 255.00 & 256.00 \\
+Forest Fire & 56 & 15.82 & 8.00 & 5.46 & 34.40 \\
+Stoch.\ Block & 59 & 16.10 & 0.34 & 15.36 & 16.84 \\
+Random (ER) & 59 & 16.06 & 0.32 & 15.24 & 17.06 \\
+PL Cluster & 56 & 15.34 & 0.04 & 15.26 & 15.40 \\
+Barabási--Albert & 47 & 15.50 & 0.00 & 15.50 & 15.50 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \paragraph{Graph parameters (from source code \texttt{src/main.py}):}
+
+% \begin{itemize}[leftmargin=*]
+%     \item \textbf{Random (ER):} $p = 1/16$; expected mean degree $= 16.0$
+%     \item \textbf{Power-law Cluster:} $m = 8$, $p_{\text{tri}} = 0.4$
+%     \item \textbf{Barabási--Albert:} $m = 8$
+%     \item \textbf{Stochastic Block:} 4 balanced blocks; $p_{\text{in}} = 0.17$, $p_{\text{out}} = 0.028$
+%     \item \textbf{Forest Fire:} forward burn prob $= 0.21$, max burn visits $= 4$
+%     \item \textbf{Cycle:} mean degree $= 2$
+%     \item \textbf{Fully Connected:} mean degree $= N-1$
+% \end{itemize}
+
+% \subsubsection{2.2 Density as confound: empirical test}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llllll}
+\toprule
+Test & r & p & q (BH) & n & \\
+\midrule
+FF density vs NASR & 0.105 & 0.438 & 0.507 & 56 & ns \\
+FF density vs NCC & 0.172 & 0.200 & 0.283 & 56 & ns \\
+All 5 param.\ topologies: density vs NASR & 0.063 & 0.296 & 0.364 & 277 & ns \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% Within the group of five parameterizable topologies, density does not significantly predict NASR.
+
+% \subsection{Comment 3: Realism Metric Not Reported for Phase 2}
+
+% \textbf{Concern (AC):} \S5.1 describes training a TwHiN-BERT classifier but no Phase 2 results appear in \S7.
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+Topology & N & Mean BERT accuracy & SD \\
+\midrule
+Cycle & 6 & 0.911 & 0.030 \\
+Forest Fire & 4 & 0.933 & 0.028 \\
+Fully Connected & 6 & 0.872 & 0.043 \\
+Stoch.\ Block & 3 & 0.885 & 0.021 \\
+Random (ER) & 6 & 0.889 & 0.034 \\
+PL Cluster & 6 & 0.920 & 0.018 \\
+Barabási--Albert & 1 & 0.922 & --- \\
+\textbf{Overall} & \textbf{32} & \textbf{0.902} & \textbf{0.035} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% Range: 0.795--0.955. Graph-type effect: $F = 2.78$, $p = 0.046$, $q = 0.089$ (ns).
+
+% \subsection{Comment 4: Phase 2 Uses Only One Survey Question}
+
+% \textbf{Concern (AC):} \S5.2 fixes Q28 for all Phase 2 runs. Topology effects may be Q28-specific.
+
+% \paragraph{Approach.}
+% 105 new runs covering Q25, Q28, and Q29, same seven topologies, Minitaur, all other Phase 2 parameters fixed.
+
+% \subsubsection{4.1 Initial conditions}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+Question & N & Initial consensus & Notes \\
+\midrule
+Q25 (genetic enhancements) & 31 & $0.566 \pm 0.000$ & Moderate majority \\
+Q28 (AI copyright) & 32 & $0.555 \pm 0.015$ & Moderate majority \\
+Q29 (environmental protection) & 42 & $1.000 \pm 0.000$ & Full consensus at $t=0$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsubsection{4.2 Topology ANOVAs per question}
+
+\begin{table*}
+\centering
+\begin{tabular}{lllllll}
+\toprule
+Q & Metric & F & $\eta^2$ & p (perm) & q (BH) & \\
+\midrule
+25 & NASR & 11.0 & 0.734 & $< 0.001$ & 0.003 & ** \\
+25 & NCC & 4.0 & 0.501 & 0.008 & 0.031 & * \\
+25 & OSR & 2.8 & 0.410 & 0.042 & 0.089 & ns \\
+25 & MFR & 0.67 & 0.144 & 0.685 & 0.730 & ns \\
+28 & NASR & 13.9 & 0.736 & $< 0.001$ & 0.003 & ** \\
+28 & NCC & 3.5 & 0.409 & 0.019 & 0.054 & ns \\
+28 & OSR & 1.3 & 0.205 & 0.287 & 0.364 & ns \\
+28 & MFR & 1.0 & 0.167 & 0.444 & 0.507 & ns \\
+29 & NASR & 7.7 & 0.570 & $< 0.001$ & 0.003 & ** \\
+29 & NCC & 2.8 & 0.321 & 0.027 & 0.065 & ns \\
+29 & OSR & 0.58 & 0.090 & 0.748 & 0.780 & ns \\
+29 & MFR & 0.93 & 0.138 & 0.514 & 0.574 & ns \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsubsection{4.3 NASR rank-ordering consistency across questions}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llllll}
+\toprule
+Pair & Spearman $r_s$ & Kendall $\tau$ & p & q (BH) & \\
+\midrule
+Q25 vs Q28 & 0.857 & 0.714 & 0.024 & 0.061 & ns \\
+Q25 vs Q29 & 0.857 & 0.714 & 0.024 & 0.061 & ns \\
+Q28 vs Q29 & \textbf{1.000} & \textbf{1.000} & \textbf{0.002} & \textbf{0.008} & ** \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsection{Comment 5: News-Agent Placement Confound}
+
+% \textbf{Concern (AC + reviewers UsoZ and aohq):} The news agent is placed at the highest-degree node; its structural reach varies with topology.
+
+% \subsubsection{5.1 Topology ANOVAs without news agent (n=70)}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llllll}
+\toprule
+Metric & F & $\eta^2$ & p (perm) & q (BH) & \\
+\midrule
+NASR & 53.0 & \textbf{0.835} & $< 0.001$ & \textbf{0.003} & ** \\
+NCC & 3.3 & 0.238 & 0.009 & \textbf{0.031} & * \\
+OSR & 3.3 & 0.237 & 0.011 & \textbf{0.037} & * \\
+MFR & 1.8 & 0.146 & 0.106 & 0.165 & ns \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsubsection{5.2 Effect size comparison across conditions}
+
+\begin{table*}
+\centering
+\begin{tabular}{llllllll}
+\toprule
+Condition & N & $\eta^2$ NASR & p & q & $\eta^2$ NCC & p & q \\
+\midrule
+Phase 2 / Minitaur (paper) & 156 & 0.906 & $< 0.001$ & --- & 0.285 & $< 0.001$ & --- \\
+No-news / Minitaur / Q28 & 70 & 0.835 & $< 0.001$ & 0.003 & 0.238 & 0.009 & 0.031 \\
+Q28 baseline / Minitaur & 32 & 0.736 & $< 0.001$ & 0.003 & 0.409 & 0.018 & 0.054 \\
+Q25 / Minitaur & 31 & 0.734 & $< 0.001$ & 0.003 & 0.501 & 0.008 & 0.031 \\
+Q28 / Minitaur (question) & 32 & 0.736 & $< 0.001$ & 0.003 & 0.409 & 0.019 & 0.054 \\
+Q29 / Minitaur & 42 & 0.570 & $< 0.001$ & 0.003 & 0.321 & 0.027 & 0.065 \\
+Gemma-3-4B & 77 & 0.785 & $< 0.001$ & 0.003 & 0.098 & 0.291 & 0.364 \\
+Llama-3.1-8B & 57 & 0.599 & $< 0.001$ & 0.003 & 0.163 & 0.159 & 0.231 \\
+Qwen2.5-7B & 76 & 0.400 & $< 0.001$ & 0.006 & 0.162 & 0.043 & 0.089 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsubsection{5.3 Direct news vs.\ no-news metric comparison}
+
+\begin{table*}[h]
+\centering
+\begin{tabular}{llllllll}
+\toprule
+Metric & With news & No news & $\Delta$ & p & q (BH) & d & \\
+\midrule
+NASR & 0.109 (n=32) & 0.106 (n=70) & +0.003 & 0.403 & 0.483 & 0.18 & ns \\
+NCC & 0.055 (n=32) & 0.027 (n=70) & +0.028 & 0.008 & 0.031 & 0.57 & * \\
+OSR & 0.280 (n=32) & 0.272 (n=70) & +0.008 & 0.002 & 0.008 & 0.72 & ** \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% The news agent has no significant effect on NASR ($q = 0.483$) but does significantly raise NCC and OSR.
+
+% \subsection{Appendix: Full Test Registry}
+
+\begin{table*}
+\centering
+\begin{tabular}{llll}
+\toprule
+Test & p & q (BH) & \\
+\midrule
+c1\_gemma\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c1\_llama3.1\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c4\_q25\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c4\_q28\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c4\_q29\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c5\_nonews\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c2\_baseline\_nasr\_anova & $< 0.001$ & 0.003 & ** \\
+c1\_qwen\_nasr\_anova & $< 0.001$ & 0.006 & ** \\
+\multicolumn{4}{l}{\dots remaining rows omitted for brevity \dots} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% \subsection{Caveats and Honest Limitations}
+
+% \paragraph{NCC sign discrepancy between Phase 2 and new runs.}
+% Phase 2 reports negative NCC values, whereas all new runs show near-zero or mildly positive NCC. The direction of NCC is determined by whether the news agent's bias aligns with or opposes the current majority.
+
+% \paragraph{Sample sizes.}
+% Job-array failures left some cells sparse (e.g.\ BA$\times$Q28: $n=1$). Statistics for $n=1$ cells are excluded.
+
+\end{document}

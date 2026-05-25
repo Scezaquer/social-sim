@@ -102,17 +102,44 @@ NUM_NEWS_AGENTS_CHOICES=(0 1)
 MODEL_PROFILE_CHOICES=("gemma_loras" "llama3.1_loras" "qwen_loras") #"minitaure_loras"
 PROPORTIONS_OPTION_CHOICES=("average" "distribution" "uniform" "blueprint" )
 
-QUESTION_PICK="28:news_tweets/ai_copyright_tweets.json" #$(pick_random QUESTION_CHOICES)
+QUESTION_PICK="28:news_tweets/ai_copyright_tweets.json"
 QUESTION_NUMBER="${QUESTION_PICK%%:*}"
 TWEET_FILE="${QUESTION_PICK#*:}"
 
-GRAPH_TYPE=$(pick_random GRAPH_CHOICES)
-HOMOPHILY_FLAG=$(pick_random HOMOPHILY_CHOICES)
-SURVEY_CONTEXT_FLAG="off" #$(pick_random SURVEY_CONTEXT_CHOICES)
-NUM_AGENTS=256 #$(pick_random NUM_AGENTS_CHOICES)
-NUM_NEWS_AGENTS=1 #$(pick_random NUM_NEWS_AGENTS_CHOICES)
-MODEL_PROFILE=$(pick_random MODEL_PROFILE_CHOICES)
-PROPORTIONS_OPTION="uniform" #$(pick_random PROPORTIONS_OPTION_CHOICES)
+# Deterministic mapping from SLURM_ARRAY_TASK_ID to parameter combinations.
+# Dimensions: graphs(7) x homophily(2) x model_profiles(3) x runs(5) = 210
+if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+    echo "SLURM_ARRAY_TASK_ID is not set. This script expects to be run as a job array (1-210)." >&2
+    exit 1
+fi
+
+idx=$((SLURM_ARRAY_TASK_ID - 1))
+runs_per=5
+num_model_profiles=${#MODEL_PROFILE_CHOICES[@]}
+num_homophily=${#HOMOPHILY_CHOICES[@]}
+num_graphs=${#GRAPH_CHOICES[@]}
+
+run_index=$(( idx % runs_per ))
+idx=$(( idx / runs_per ))
+
+model_profile_index=$(( idx % num_model_profiles ))
+idx=$(( idx / num_model_profiles ))
+
+homophily_index=$(( idx % num_homophily ))
+idx=$(( idx / num_homophily ))
+
+graph_index=$(( idx % num_graphs ))
+
+GRAPH_TYPE="${GRAPH_CHOICES[$graph_index]}"
+HOMOPHILY_FLAG="${HOMOPHILY_CHOICES[$homophily_index]}"
+SURVEY_CONTEXT_FLAG="off"
+NUM_AGENTS=256
+NUM_NEWS_AGENTS=1
+MODEL_PROFILE="${MODEL_PROFILE_CHOICES[$model_profile_index]}"
+PROPORTIONS_OPTION="uniform"
+
+# Expose a run number (1-based) for downstream scripts/logging
+RUN_NUMBER=$((run_index + 1))
 
 BASE_MODEL=""
 LORAS_PATH=""
@@ -170,7 +197,7 @@ esac
 MODEL_INDEX_SETS=(
     "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24"
 )
-LORA_INDEX_SET=$(pick_random MODEL_INDEX_SETS)
+LORA_INDEX_SET="${MODEL_INDEX_SETS[0]}"
 
 SURVEY_OUTPUT="survey_randomized_emnlp2026model_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"
 VISUALIZER_OUTPUT="visualizer_randomized_emnlp2026model_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.json"

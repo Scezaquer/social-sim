@@ -42,15 +42,34 @@ def norm_model(rp: Dict) -> str:
 def msd(vals: List) -> Tuple[Optional[float], Optional[float], int]:
     v = [x for x in vals if x is not None]
     if not v:
-        return None, None, 0
+        return math.nan, math.nan, 0
     return statistics.mean(v), (statistics.stdev(v) if len(v) > 1 else 0.0), len(v)
+
+
+def fmt_val(v: Optional[float], fmt_spec: str = ".4f") -> str:
+    """Safely format a numeric value or return 'NaN' when None."""
+    if v is None:
+        return "NaN"
+    try:
+        return format(v, fmt_spec)
+    except Exception:
+        return str(v)
+
+
+def fmt_ms_n(m: Optional[float], s: Optional[float], n: int,
+             mfmt: str = ".4f", sfmt: str = ".4f") -> str:
+    return f"mean={fmt_val(m, mfmt)}±{fmt_val(s, sfmt)} n={n}"
+
+
+def pct_str(count: int, n: int) -> str:
+    return f"{(100 * count // n)}%" if n else "NaN%"
 
 
 def welch_t(a: List, b: List) -> Tuple[Optional[float], Optional[float]]:
     a = [x for x in a if x is not None]
     b = [x for x in b if x is not None]
     if len(a) < 2 or len(b) < 2:
-        return None, None
+        return math.nan, math.nan
     ma, mb = statistics.mean(a), statistics.mean(b)
     va, vb = statistics.variance(a), statistics.variance(b)
     se = math.sqrt(va / len(a) + vb / len(b))
@@ -64,7 +83,7 @@ def welch_t(a: List, b: List) -> Tuple[Optional[float], Optional[float]]:
 def pearson_r(xs: List, ys: List) -> Tuple[Optional[float], Optional[float], int]:
     pairs = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
     if len(pairs) < 3:
-        return None, None, len(pairs)
+        return math.nan, math.nan, len(pairs)
     x_, y_ = zip(*pairs)
     mx, my = statistics.mean(x_), statistics.mean(y_)
     num = sum((a - mx) * (b - my) for a, b in zip(x_, y_))
@@ -83,7 +102,7 @@ def cohens_d(a: List, b: List) -> Optional[float]:
     a = [x for x in a if x is not None]
     b = [x for x in b if x is not None]
     if len(a) < 2 or len(b) < 2:
-        return None
+        return math.nan
     ma, mb = statistics.mean(a), statistics.mean(b)
     pooled = math.sqrt(
         (statistics.variance(a) * (len(a) - 1) + statistics.variance(b) * (len(b) - 1))
@@ -93,7 +112,7 @@ def cohens_d(a: List, b: List) -> Optional[float]:
 
 
 def sig(p: Optional[float]) -> str:
-    if p is None:
+    if p is None or (isinstance(p, float) and math.isnan(p)):
         return ""
     if p < 0.001:
         return "***"
@@ -120,7 +139,7 @@ def sub(title: str) -> None:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, default=".", help="Directory containing visualizer_randomized_*.json files")
-parser.add_argument("--glob_pattern", type=str, default="visualizer_randomized_*.json", help="Glob pattern to match JSON files")
+parser.add_argument("--glob_pattern", type=str, default="visualizer_randomized*.json", help="Glob pattern to match JSON files")
 
 args = parser.parse_args()
 
@@ -259,7 +278,7 @@ sub("Thread count by num_agents  [report: roughly constant ~780]")
 for na in [64, 256, 1024, 4096]:
     v = [r["num_threads"] for r in runs if r["num_agents"] == na]
     m, s, n = msd(v)
-    print(f"  num_agents={na}: mean={m:.1f} sd={s:.1f} n={n}")
+    print(f"  num_agents={na}: mean={fmt_val(m,'.1f')} sd={fmt_val(s,'.1f')} n={n}")
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +311,7 @@ for na in [64, 256, 1024, 4096]:
     v_abs = [r["abs_shift_mean"] for r in runs if r["num_agents"] == na]
     m_r, s_r, n = msd(v_rate)
     m_a, s_a, _ = msd(v_abs)
-    print(f"  na={na}: fraction={m_r:.4f}±{s_r:.4f}  abs_count={m_a:.1f}±{s_a:.1f}  n={n}")
+    print(f"  na={na}: fraction={fmt_val(m_r,'.4f')}±{fmt_val(s_r,'.4f')}  abs_count={fmt_val(m_a,'.1f')}±{fmt_val(s_a,'.1f')}  n={n}")
 
 sub("Correlation: num_agents vs fraction  [report: r=−0.42]  vs abs count  [report: r=+0.64]")
 r_frac, p_frac, n_f = pearson_r(
@@ -301,8 +320,8 @@ r_frac, p_frac, n_f = pearson_r(
 r_abs, p_abs, n_a = pearson_r(
     [r["num_agents"] for r in runs],
     [r["abs_shift_mean"] for r in runs])
-print(f"  fraction r={r_frac:.4f}, p={p_frac:.4f} {sig(p_frac)}, n={n_f}")
-print(f"  abs_count r={r_abs:.4f}, p={p_abs:.4f} {sig(p_abs)}, n={n_a}")
+print(f"  fraction r={fmt_val(r_frac,'.4f')}, p={fmt_val(p_frac,'.4f')} {sig(p_frac)}, n={n_f}")
+print(f"  abs_count r={fmt_val(r_abs,'.4f')}, p={fmt_val(p_abs,'.4f')} {sig(p_abs)}, n={n_a}")
 print("  => fraction negative, abs positive — effect is real, not artifact")
 
 sub("Within-model correlations: num_agents vs opinion_shift_rate  [report: LoRA models all p<0.001; qwen_base r=-0.18 ns]")
@@ -310,7 +329,7 @@ for model in ["minitaur", "llama3.1", "qwen", "qwen_base", "gemma"]:
     xs = [r["num_agents"] for r in runs if r["model"] == model]
     ys = [r["mean_opinion_shift_rate"] for r in runs if r["model"] == model]
     r_val, p_val, n = pearson_r(xs, ys)
-    print(f"  {model}: r={r_val:.4f}, p={p_val:.4f} {sig(p_val)}, n={n}")
+    print(f"  {model}: r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.4f')} {sig(p_val)}, n={n}")
 
 
 # ---------------------------------------------------------------------------
@@ -325,13 +344,13 @@ for model in ["minitaur", "llama3.1", "qwen", "qwen_base", "gemma"]:
     m, s, n = msd(v)
     pos = sum(1 for x in v if x is not None and x > 0)
     neg = sum(1 for x in v if x is not None and x < 0)
-    print(f"  {model}: mean={m:.4f}±{s:.4f} n={n}  ↑{pos}({100*pos//n}%) ↓{neg}({100*neg//n}%)")
+    print(f"  {model}: {fmt_ms_n(m,s,n,'.4f','.4f')}  ↑{pos}({pct_str(pos,n)}) ↓{neg}({pct_str(neg,n)})")
 
 sub("Initial consensus by model  [report: qwen_base ~1.000 on Q25/Q28]")
 for model in ["minitaur", "llama3.1", "qwen", "qwen_base", "gemma"]:
     v = [r["initial_consensus"] for r in runs if r["model"] == model]
     m, s, n = msd(v)
-    print(f"  {model}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  {model}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("Pairwise Welch t-tests on net_consensus_change  [report table in Section 3.1]")
 pairs = [
@@ -349,8 +368,8 @@ for m1, m2, expected in pairs:
     d = cohens_d(a, b)
     ma, _, na = msd(a)
     mb, _, nb = msd(b)
-    print(f"  {m1}(n={na},{ma:.4f}) vs {m2}(n={nb},{mb:.4f}): "
-          f"t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}  [expected: {expected}]")
+    print(f"  {m1}(n={na},{fmt_val(ma,'.4f')}) vs {m2}(n={nb},{fmt_val(mb,'.4f')}): "
+        f"t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}  [expected: {expected}]")
 
 sub("Consensus change by question × model  [report table in Section 3.1]")
 for q in [25, 28, 29]:
@@ -361,7 +380,7 @@ for q in [25, 28, 29]:
         m, s, n = msd(v)
         if n > 0 and m is not None:
             pos = sum(1 for x in v if x is not None and x > 0)
-            print(f"    {model}: n={n}, init={init_m:.3f}, Δ={m:.4f}±{s:.4f}, ↑{pos}({100*pos//n}%)")
+            print(f"    {model}: n={n}, init={fmt_val(init_m,'.3f')}, Δ={fmt_val(m,'.4f')}±{fmt_val(s,'.4f')}, ↑{pos}({pct_str(pos,n)})")
 
 sub("Unusual initial consensus values  [report: qwen Q28=0.993, gemma Q29=0.562, minitaur Q29=1.000]")
 for q in [25, 28, 29]:
@@ -369,7 +388,7 @@ for q in [25, 28, 29]:
         v = [r["initial_consensus"] for r in runs if r["question"] == q and r["model"] == model]
         m, s, n = msd(v)
         if m is not None:
-            print(f"  Q{q} {model}: init={m:.4f}±{s:.4f} n={n}")
+            print(f"  Q{q} {model}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 
 # ---------------------------------------------------------------------------
@@ -395,8 +414,9 @@ for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
     ml, _, nl = msd(s1024)
     t, p = welch_t(s64, s1024)
     if ms and ml:
-        print(f"  {model}: 64={ms:.3f}(n={ns}) vs 1024={ml:.3f}(n={nl}), "
-              f"ratio={ms/ml:.2f}x, t={t:.3f}, p={p:.4f} {sig(p)}")
+          ratio_str = f"{ms/ml:.2f}x" if (ms is not None and ml) else "NaN"
+          print(f"  {model}: 64={fmt_val(ms,'.3f')}(n={ns}) vs 1024={fmt_val(ml,'.3f')}(n={nl}), "
+              f"ratio={ratio_str}, t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("64 vs 4096 for models that have 4096 runs")
 for model in ["minitaur", "llama3.1", "qwen"]:
@@ -406,14 +426,15 @@ for model in ["minitaur", "llama3.1", "qwen"]:
     ml, _, nl = msd(s4096)
     t, p = welch_t(s64, s4096)
     if ms and ml:
-        print(f"  {model}: 64={ms:.3f}(n={ns}) vs 4096={ml:.3f}(n={nl}), "
-              f"ratio={ms/ml:.2f}x, t={t:.3f}, p={p:.4f} {sig(p)}")
+          ratio_str = f"{ms/ml:.2f}x" if (ms is not None and ml) else "NaN"
+          print(f"  {model}: 64={fmt_val(ms,'.3f')}(n={ns}) vs 4096={fmt_val(ml,'.3f')}(n={nl}), "
+              f"ratio={ratio_str}, t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("Correlation: num_agents vs net_consensus_change  [report: r=0.03, ns]")
 r_val, p_val, n = pearson_r(
     [r["num_agents"] for r in runs],
     [r["net_consensus_change"] for r in runs])
-print(f"  r={r_val:.4f}, p={p_val:.4f} {sig(p_val)}, n={n}")
+print(f"  r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.4f')} {sig(p_val)}, n={n}")
 
 
 # ---------------------------------------------------------------------------
@@ -426,27 +447,27 @@ sub("Majority follow rate by ctx  [report: 0.495 vs 0.461, d=0.27, p<0.001]")
 for ctx in [True, False]:
     v = [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == ctx]
     m, s, n = msd(v)
-    print(f"  ctx={ctx}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 t, p = welch_t(
     [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == True],
     [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == False])
 d = cohens_d(
     [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == True],
     [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == False])
-print(f"  Welch t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+print(f"  Welch t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}")
 
 sub("BERT accuracy by ctx  [report: 0.984 vs 0.943, d=1.20, p<0.001]")
 for ctx in [True, False]:
     v = [r["bert_accuracy"] for r in runs if r["add_survey_to_context"] == ctx and r["bert_accuracy"] is not None]
     m, s, n = msd(v)
-    print(f"  ctx={ctx}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 t, p = welch_t(
     [r["bert_accuracy"] for r in runs if r["add_survey_to_context"] == True],
     [r["bert_accuracy"] for r in runs if r["add_survey_to_context"] == False])
 d = cohens_d(
     [r["bert_accuracy"] for r in runs if r["add_survey_to_context"] == True],
     [r["bert_accuracy"] for r in runs if r["add_survey_to_context"] == False])
-print(f"  Welch t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+print(f"  Welch t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}")
 
 sub("Survey context distribution within each model  [for confound check]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
@@ -461,11 +482,11 @@ for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
              if r["model"] == model and r["add_survey_to_context"] == ctx]
         m, s, n = msd(v)
         if m is not None:
-            print(f"  {model} ctx={ctx}: mean={m:.4f}±{s:.4f} n={n}")
+            print(f"  {model} ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
     t, p = welch_t(
         [r["net_consensus_change"] for r in runs if r["model"] == model and r["add_survey_to_context"] == True],
         [r["net_consensus_change"] for r in runs if r["model"] == model and r["add_survey_to_context"] == False])
-    print(f"  {model}: ctx effect t={t:.3f}, p={p:.4f} {sig(p)}")
+    print(f"  {model}: ctx effect t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("BERT accuracy by ctx within each model  [report: gemma near-zero ctx effect]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
@@ -474,14 +495,14 @@ for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
              if r["model"] == model and r["add_survey_to_context"] == ctx and r["bert_accuracy"] is not None]
         m, s, n = msd(v)
         if m is not None:
-            print(f"  {model} ctx={ctx}: mean={m:.4f}±{s:.4f} n={n}")
+            print(f"  {model} ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("BERT ctx effect for non-gemma only  [report: 98.0% vs 93.4%]")
 for ctx in [True, False]:
     v = [r["bert_accuracy"] for r in runs
          if r["model"] != "gemma" and r["add_survey_to_context"] == ctx and r["bert_accuracy"] is not None]
     m, s, n = msd(v)
-    print(f"  non-gemma ctx={ctx}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  non-gemma ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 
 # ---------------------------------------------------------------------------
@@ -494,8 +515,8 @@ sub("BERT accuracy by model  [report: qwen_base=1.000, gemma=0.995, others ~0.94
 for model in ["minitaur", "llama3.1", "qwen", "qwen_base", "gemma"]:
     v = [r["bert_accuracy"] for r in runs if r["model"] == model and r["bert_accuracy"] is not None]
     m, s, n = msd(v)
-    if m is not None:
-        print(f"  {model}: mean={m:.4f}±{s:.4f} n={n}, range=[{min(v):.4f},{max(v):.4f}]")
+    if v:
+        print(f"  {model}: {fmt_ms_n(m,s,n,'.4f','.4f')}, range=[{fmt_val(min(v),'.4f')},{fmt_val(max(v),'.4f')}]")
 
 sub("Welch t-tests: gemma vs each other model  [report: all d~1.25–1.45, p<0.001]")
 for model in ["minitaur", "llama3.1", "qwen"]:
@@ -503,25 +524,25 @@ for model in ["minitaur", "llama3.1", "qwen"]:
     b = [r["bert_accuracy"] for r in runs if r["model"] == model]
     t, p = welch_t(a, b)
     d = cohens_d(a, b)
-    print(f"  gemma vs {model}: t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+    print(f"  gemma vs {model}: t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}")
 
 sub("bert_n by model  [report: gemma=145.7 vs others=147.4 — similar, ruling out sample-size explanation]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
     v = [r["bert_n"] for r in runs if r["model"] == model and r["bert_n"] is not None]
     m, s, n = msd(v)
     if m is not None:
-        print(f"  {model}: mean bert_n={m:.1f}±{s:.1f} n={n}")
+        print(f"  {model}: mean bert_n={fmt_val(m,'.1f')}±{fmt_val(s,'.1f')} n={n}")
 
 sub("Overall BERT accuracy  [report: 96.4%, range 77.9%–100%]")
 v = [r["bert_accuracy"] for r in runs if r["bert_accuracy"] is not None]
 m, s, n = msd(v)
-print(f"  mean={m:.4f}±{s:.4f} n={n}, range=[{min(v):.4f},{max(v):.4f}]")
+print(f"  mean={fmt_val(m,'.4f')}±{fmt_val(s,'.4f')} n={n}, range=[{fmt_val(min(v),'.4f') if v else 'NaN'},{fmt_val(max(v),'.4f') if v else 'NaN'}]")
 
 sub("BERT accuracy by question")
 for q in [25, 28, 29]:
     v = [r["bert_accuracy"] for r in runs if r["question"] == q and r["bert_accuracy"] is not None]
     m, s, n = msd(v)
-    print(f"  Q{q}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  Q{q}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 
 # ---------------------------------------------------------------------------
@@ -535,13 +556,13 @@ for p_opt in ["uniform", "blueprint", "average", "distribution"]:
     v_c = [r["net_consensus_change"] for r in runs if r["proportions_option"] == p_opt]
     init_m, _, _ = msd([r["initial_consensus"] for r in runs if r["proportions_option"] == p_opt])
     m, s, n = msd(v_c)
-    print(f"  {p_opt}: n={n}, init={init_m:.4f}, Δconsensus={m:.4f}±{s:.4f}")
+    print(f"  {p_opt}: n={n}, init={fmt_val(init_m,'.4f')}, Δconsensus={fmt_val(m,'.4f')}±{fmt_val(s,'.4f')}")
 
 sub("average vs uniform: no longer significant  [report: p=0.29 ns]")
 t, p = welch_t(
     [r["net_consensus_change"] for r in runs if r["proportions_option"] == "average"],
     [r["net_consensus_change"] for r in runs if r["proportions_option"] == "uniform"])
-print(f"  t={t:.3f}, p={p:.4f} {sig(p)}")
+print(f"  t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("Proportions distribution within each model  [for confound check]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
@@ -574,27 +595,30 @@ for key, label in [
 ]:
     v = [r[key] for r in runs if r[key] is not None]
     m, s, n = msd(v)
-    print(f"  {label}: mean={m:.4f}±{s:.4f} n={n}, range=[{min(v):.4f},{max(v):.4f}]")
+    if v:
+        print(f"  {label}: {fmt_ms_n(m,s,n,'.4f','.4f')}, range=[{fmt_val(min(v),'.4f')},{fmt_val(max(v),'.4f')}]")
+    else:
+        print(f"  {label}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("Assortativity by homophily  [report: 0.006 vs −0.004, p=0.004**]")
 for h in [True, False]:
     v = [r["echo_assortativity"] for r in runs if r["homophily"] == h and r["echo_assortativity"] is not None]
     m, s, n = msd(v)
-    print(f"  homophily={h}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  homophily={h}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 t, p = welch_t(
     [r["echo_assortativity"] for r in runs if r["homophily"] == True],
     [r["echo_assortativity"] for r in runs if r["homophily"] == False])
-print(f"  Welch t={t:.3f}, p={p:.4f} {sig(p)}")
+print(f"  Welch t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("Local agreement by graph_type  [report: powerlaw=0.726 vs random=0.720, p=0.66 ns]")
 for gt in ["random", "powerlaw_cluster"]:
     v = [r["echo_local_agreement"] for r in runs if r["graph_type"] == gt and r["echo_local_agreement"] is not None]
     m, s, n = msd(v)
-    print(f"  {gt}: mean={m:.4f}±{s:.4f} n={n}")
+    print(f"  {gt}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 t, p = welch_t(
     [r["echo_local_agreement"] for r in runs if r["graph_type"] == "powerlaw_cluster"],
     [r["echo_local_agreement"] for r in runs if r["graph_type"] == "random"])
-print(f"  Welch t (powerlaw vs random)={t:.3f}, p={p:.4f} {sig(p)}")
+print(f"  Welch t (powerlaw vs random)={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("Cross-cutting edges by graph_type  [report: random=0.280 vs powerlaw=0.275, p=0.70 ns]")
 for gt in ["random", "powerlaw_cluster"]:
@@ -604,13 +628,13 @@ for gt in ["random", "powerlaw_cluster"]:
 t, p = welch_t(
     [r["echo_cross_cutting"] for r in runs if r["graph_type"] == "random"],
     [r["echo_cross_cutting"] for r in runs if r["graph_type"] == "powerlaw_cluster"])
-print(f"  Welch t (random vs powerlaw)={t:.3f}, p={p:.4f} {sig(p)}")
+print(f"  Welch t (random vs powerlaw)={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("Correlation: same-option exposure vs net_consensus_change  [report: r=+0.46, p<0.001]")
 r_val, p_val, n = pearson_r(
     [r["echo_same_option_exposure"] for r in runs],
     [r["net_consensus_change"] for r in runs])
-print(f"  r={r_val:.4f}, p={p_val:.4f} {sig(p_val)}, n={n}")
+print(f"  r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.4f')} {sig(p_val)}, n={n}")
 
 
 # ---------------------------------------------------------------------------
@@ -629,11 +653,11 @@ for metric, label in [
         v = [r[metric] for r in runs if r["num_news_agents"] == nn]
         m, s, n = msd(v)
         if m is not None:
-            print(f"  {label} news={nn}: mean={m:.4f}±{s:.4f} n={n}")
+            print(f"  {label} news={nn}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
     t, p = welch_t(
         [r[metric] for r in runs if r["num_news_agents"] == 0],
         [r[metric] for r in runs if r["num_news_agents"] == 1])
-    print(f"  {label}: Welch t={t:.3f}, p={p:.4f} {sig(p)}\n")
+    print(f"  {label}: Welch t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -646,25 +670,25 @@ sub("Cohen's d: Minitaur vs Gemma  [report: d=1.03]")
 d = cohens_d(
     [r["net_consensus_change"] for r in runs if r["model"] == "minitaur"],
     [r["net_consensus_change"] for r in runs if r["model"] == "gemma"])
-print(f"  d={d:.3f}")
+print(f"  d={fmt_val(d,'.3f')}")
 
 sub("Cohen's d: Minitaur vs Llama3.1  [report: d=0.48]")
 d = cohens_d(
     [r["net_consensus_change"] for r in runs if r["model"] == "minitaur"],
     [r["net_consensus_change"] for r in runs if r["model"] == "llama3.1"])
-print(f"  d={d:.3f}")
+print(f"  d={fmt_val(d,'.3f')}")
 
 sub("Cohen's d: Qwen vs Gemma  [report: d=0.55]")
 d = cohens_d(
     [r["net_consensus_change"] for r in runs if r["model"] == "qwen"],
     [r["net_consensus_change"] for r in runs if r["model"] == "gemma"])
-print(f"  d={d:.3f}")
+print(f"  d={fmt_val(d,'.3f')}")
 
 sub("Cohen's d: survey_context → majority follow rate  [report: d=0.27]")
 d = cohens_d(
     [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == True],
     [r["mean_majority_follow_rate"] for r in runs if r["add_survey_to_context"] == False])
-print(f"  d={d:.3f}")
+print(f"  d={fmt_val(d,'.3f')}")
 
 sub("Cohen's d: survey_context → BERT accuracy  [report: d=1.20]")
 d = cohens_d(
@@ -676,7 +700,7 @@ sub("r: num_agents vs opinion_shift_rate  [report: r=−0.42]")
 r_val, p_val, n = pearson_r(
     [r["num_agents"] for r in runs],
     [r["mean_opinion_shift_rate"] for r in runs])
-print(f"  r={r_val:.4f}, p={p_val:.4f} {sig(p_val)}, n={n}")
+print(f"  r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.4f')} {sig(p_val)}, n={n}")
 
 sub("r: num_agents vs consensus change  [report: r=0.03, ns]")
 r_val, p_val, n = pearson_r(
@@ -689,10 +713,10 @@ ctx_t = [r["bert_n"] for r in runs if r["add_survey_to_context"] == True and r["
 ctx_f = [r["bert_n"] for r in runs if r["add_survey_to_context"] == False and r["bert_n"] is not None]
 mt, _, nt = msd(ctx_t)
 mf, _, nf = msd(ctx_f)
-print(f"  ctx=True bert_n: mean={mt:.1f} n={nt}")
-print(f"  ctx=False bert_n: mean={mf:.1f} n={nf}")
+print(f"  ctx=True bert_n: mean={fmt_val(mt,'.1f')} n={nt}")
+print(f"  ctx=False bert_n: mean={fmt_val(mf,'.1f')} n={nf}")
 r_val, p_val, _ = pearson_r([r["bert_n"] for r in runs], [r["bert_accuracy"] for r in runs])
-print(f"  bert_n vs bert_accuracy: r={r_val:.4f}, p={p_val:.4f}")
+print(f"  bert_n vs bert_accuracy: r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.4f')}")
 
 # ---------------------------------------------------------------------------
 # Section 3.7: NASR (neighbor_alignment_shift_rate)
@@ -704,19 +728,19 @@ sub("NASR coverage  [report: 595/595 runs populated]")
 has_nasr = [r for r in runs if r["mean_nasr"] is not None]
 print(f"  Runs with NASR: {len(has_nasr)}/{len(runs)}")
 m, s, n = msd([r["mean_nasr"] for r in runs])
-print(f"  Overall mean NASR: {m:.4f}±{s:.4f} n={n}")
+print(f"  Overall mean NASR: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("NASR vs OSR correlation  [report: r=0.943, p<0.001]")
 r_val, p_val, n = pearson_r(
     [r["mean_nasr"] for r in runs],
     [r["mean_osr_from_transitions"] for r in runs])
-print(f"  r={r_val:.4f}, p={p_val:.6f} {sig(p_val)}, n={n}")
+print(f"  r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.6f')} {sig(p_val)}, n={n}")
 
 sub("NASR by model  [report: gemma=0.088, qwen=0.078, llama3.1=0.074, minitaur=0.057]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
     v = [r["mean_nasr"] for r in runs if r["model"] == model and r["mean_nasr"] is not None]
     m, s, n = msd(v)
-    print(f"  {model}: {m:.4f}±{s:.4f} n={n}")
+    print(f"  {model}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("NASR/OSR ratio by model  [report: ~0.36–0.42]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
@@ -726,7 +750,7 @@ for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
                 and r["mean_osr_from_transitions"] > 0]
     ratios = [r["mean_nasr"] / r["mean_osr_from_transitions"] for r in sub_runs]
     m, s, n = msd(ratios)
-    print(f"  {model}: ratio={m:.3f}±{s:.3f} n={n}")
+    print(f"  {model}: ratio={fmt_val(m,'.3f')}±{fmt_val(s,'.3f')} n={n}")
 
 sub("NASR pairwise tests  [report: all sig except llama3.1 vs qwen]")
 for m1, m2, expected in [
@@ -743,31 +767,31 @@ for m1, m2, expected in [
     d = cohens_d(a, b)
     ma, _, na_ = msd(a)
     mb, _, nb = msd(b)
-    print(f"  {m1}({ma:.4f},n={na_}) vs {m2}({mb:.4f},n={nb}): "
-          f"t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}  [expected: {expected}]")
+    print(f"  {m1}({fmt_val(ma,'.4f')},n={na_}) vs {m2}({fmt_val(mb,'.4f')},n={nb}): "
+          f"t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}  [expected: {expected}]")
 
 sub("NASR vs num_agents  [report: r=−0.36, p<0.001]")
 r_val, p_val, n = pearson_r(
     [r["num_agents"] for r in runs],
     [r["mean_nasr"] for r in runs])
-print(f"  r={r_val:.4f}, p={p_val:.6f} {sig(p_val)}, n={n}")
+print(f"  r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.6f')} {sig(p_val)}, n={n}")
 for na in [64, 256, 1024, 4096]:
     v = [r["mean_nasr"] for r in runs if r["num_agents"] == na and r["mean_nasr"] is not None]
     m, s, n = msd(v)
-    print(f"  na={na}: {m:.4f}±{s:.4f} n={n}")
+    print(f"  na={na}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("Survey context → NASR (global)  [report: p<0.001, d=0.315]")
 for ctx in [True, False]:
     v = [r["mean_nasr"] for r in runs if r["add_survey_to_context"] == ctx and r["mean_nasr"] is not None]
     m, s, n = msd(v)
-    print(f"  ctx={ctx}: {m:.4f}±{s:.4f} n={n}")
+    print(f"  ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
 t, p = welch_t(
     [r["mean_nasr"] for r in runs if r["add_survey_to_context"] == True],
     [r["mean_nasr"] for r in runs if r["add_survey_to_context"] == False])
 d = cohens_d(
     [r["mean_nasr"] for r in runs if r["add_survey_to_context"] == True],
     [r["mean_nasr"] for r in runs if r["add_survey_to_context"] == False])
-print(f"  t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+print(f"  t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}")
 
 sub("Survey context → NASR within each model  [report: minitaur p=0.034*, llama3.1 p=0.031*, gemma p=0.042*; qwen ns]")
 for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
@@ -775,11 +799,11 @@ for model in ["minitaur", "llama3.1", "qwen", "gemma"]:
         v = [r["mean_nasr"] for r in runs
              if r["model"] == model and r["add_survey_to_context"] == ctx and r["mean_nasr"] is not None]
         m, s, n = msd(v)
-        print(f"  {model} ctx={ctx}: {m:.4f}±{s:.4f} n={n}")
+        print(f"  {model} ctx={ctx}: {fmt_ms_n(m,s,n,'.4f','.4f')}")
     t, p = welch_t(
         [r["mean_nasr"] for r in runs if r["model"] == model and r["add_survey_to_context"] == True],
         [r["mean_nasr"] for r in runs if r["model"] == model and r["add_survey_to_context"] == False])
-    print(f"  {model}: t={t:.3f}, p={p:.4f} {sig(p)}")
+    print(f"  {model}: t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}")
 
 
 # ---------------------------------------------------------------------------
@@ -833,8 +857,8 @@ for raw_key, label in ECHO_KEYS.items():
     t_zero = md / (sd / math.sqrt(nd)) if nd > 1 and sd > 0 else None
     p_zero = 2 * (1 - 0.5 * (1 + math.erf(abs(t_zero) / math.sqrt(2)))) if t_zero else None
     print(f"  {label}:")
-    print(f"    first={m0:.4f}±{s0:.4f} (n={n0}), last={m1:.4f}±{s1:.4f} (n={n1})")
-    print(f"    Δ={md:.4f}±{sd:.4f} (n={nd}), p_vs_zero={p_zero:.4f} {sig(p_zero)}")
+    print(f"    first={fmt_val(m0,'.4f')}±{fmt_val(s0,'.4f')} (n={n0}), last={fmt_val(m1,'.4f')}±{fmt_val(s1,'.4f')} (n={n1})")
+    print(f"    Δ={fmt_val(md,'.4f')}±{fmt_val(sd,'.4f')} (n={nd}), p_vs_zero={fmt_val(p_zero,'.4f')} {sig(p_zero)}")
 
 sub("Homophily → Δ assortativity  [report: True=−0.046, False=+0.002, p<0.001, d=−0.622]")
 dh_t = [x["delta"] for x in deltas["assortativity"] if x["homophily"] == True]
@@ -843,16 +867,16 @@ mht, sht, nht = msd(dh_t)
 mhf, shf, nhf = msd(dh_f)
 t, p = welch_t(dh_t, dh_f)
 d = cohens_d(dh_t, dh_f)
-print(f"  homophily=True: {mht:.4f}±{sht:.4f} n={nht}")
-print(f"  homophily=False: {mhf:.4f}±{shf:.4f} n={nhf}")
-print(f"  t={t:.3f}, p={p:.4f} {sig(p)}, d={d:.3f}")
+print(f"  homophily=True: {fmt_ms_n(mht,sht,nht,'.4f','.4f')}")
+print(f"  homophily=False: {fmt_ms_n(mhf,shf,nhf,'.4f','.4f')}")
+print(f"  t={fmt_val(t,'.3f')}, p={fmt_val(p,'.4f')} {sig(p)}, d={fmt_val(d,'.3f')}")
 
 sub("Initial assortativity by homophily  [report: True=0.052, False=−0.006]")
 for h in [True, False]:
     vals = [r["by_survey"][0].get("network_assortativity")
             for r in runs if r["by_survey"] and r["homophily"] == h]
     m, s, n = msd([v for v in vals if v is not None])
-    print(f"  homophily={h}: initial assortativity={m:.4f}±{s:.4f} n={n}")
+    print(f"  homophily={h}: initial assortativity={fmt_ms_n(m,s,n,'.4f','.4f')}")
 
 sub("Graph type → echo deltas  [report: assortativity p=0.016*; others ns]")
 for label in ["assortativity", "local_agreement", "cross_cutting", "same_option_exposure"]:
@@ -861,13 +885,13 @@ for label in ["assortativity", "local_agreement", "cross_cutting", "same_option_
     mr, _, nr = msd(vals_r)
     mp, _, np_ = msd(vals_p)
     t, p = welch_t(vals_r, vals_p)
-    print(f"  {label}: random={mr:.4f}(n={nr}), powerlaw={mp:.4f}(n={np_}), p={p:.4f} {sig(p)}")
+    print(f"  {label}: random={fmt_val(mr,'.4f')}(n={nr}), powerlaw={fmt_val(mp,'.4f')}(n={np_}), p={fmt_val(p,'.4f')} {sig(p)}")
 
 sub("Δ local_agreement vs net_consensus_change  [report: r=0.904, p<0.001]")
 la_deltas = [x["delta"] for x in deltas["local_agreement"]]
 la_ncc = [x["net_consensus_change"] for x in deltas["local_agreement"]]
 r_val, p_val, n = pearson_r(la_deltas, la_ncc)
-print(f"  r={r_val:.4f}, p={p_val:.6f} {sig(p_val)}, n={n}")
+print(f"  r={fmt_val(r_val,'.4f')}, p={fmt_val(p_val,'.6f')} {sig(p_val)}, n={n}")
 
 sub("Δ assortativity vs net_consensus_change  [report: r=−0.132, p=0.001**]")
 as_deltas = [x["delta"] for x in deltas["assortativity"]]

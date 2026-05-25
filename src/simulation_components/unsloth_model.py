@@ -16,7 +16,7 @@ except ImportError as e:
 
 from transformers import StoppingCriteria, StoppingCriteriaList
 
-DEFAULT_TEMPERATURE = 1.5
+DEFAULT_TEMPERATURE = 1.0
 DEFAULT_TOP_P = 0.95
 DEFAULT_TOP_K = 64
 DEFAULT_TERMINATORS = ()
@@ -62,13 +62,12 @@ class UnslothLanguageModel:
 
     self._model_name = model_name
     self._nbr_lora_adapters = 0
-    self._amp_dtype = self._get_amp_dtype()
     
     # Initialize Unsloth model
     self.model, self.tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
         max_seq_length=max_seq_length,
-        dtype=self._amp_dtype,
+        dtype=torch.bfloat16,
         load_in_4bit=load_in_4bit,
         **kwargs
     )
@@ -92,12 +91,6 @@ class UnslothLanguageModel:
     if self.tokenizer.chat_template is None or "Qwen" in self._model_name or "Minitaur" in self._model_name:
         print("Using custom ChatML template.")
         self.tokenizer.chat_template = "{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}"
-
-  @staticmethod
-  def _get_amp_dtype() -> torch.dtype:
-    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-      return torch.bfloat16
-    return torch.float16
 
   def finalize_inference(self):
     """Call after loading all LoRA adapters to optimize for inference."""
@@ -168,7 +161,7 @@ class UnslothLanguageModel:
     
     # Use autocast to ensure operations are performed in bfloat16
     with torch.no_grad():
-        with torch.amp.autocast("cuda", dtype=self._amp_dtype):
+        with torch.amp.autocast("cuda", dtype=torch.bfloat16):
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
@@ -217,9 +210,7 @@ class UnslothLanguageModel:
             # Use autocast to ensure operations are performed in bfloat16
             # This is specifically needed for models like Gemma-3 where the unsloth compiler 
             # might have internal float32/bfloat16 mismatches in the forward pass.
-            tmp = self.tokenizer("test", return_tensors="pt").to("cuda")
-            with torch.amp.autocast("cuda", dtype=self._amp_dtype):
-                tmp = self.model(**tmp)
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
             
@@ -251,6 +242,12 @@ class UnslothLanguageModel:
             logprobs.append(total_logprob)
             
     best_idx = int(max(range(len(logprobs)), key=lambda i: logprobs[i]))
+
+    if self._measurements is not None:
+        self._measurements.publish_datum(
+            self._channel,
+            {'choice_method': 'logprobs', 'num_choices': len(responses)},
+        )
     
     debug_info = {
         'logprobs': {response: logprobs[i]
