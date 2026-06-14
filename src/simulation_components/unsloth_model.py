@@ -22,6 +22,7 @@ DEFAULT_TOP_K = 64
 DEFAULT_TERMINATORS = ()
 DEFAULT_TIMEOUT_SECONDS = 60
 DEFAULT_MAX_TOKENS = 5000
+DTYPE = torch.float16 #torch.bfloat16
 
 class StopOnString(StoppingCriteria):
     def __init__(self, tokenizer, stop_string, prompt_len):
@@ -67,7 +68,7 @@ class UnslothLanguageModel:
     self.model, self.tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_name,
         max_seq_length=max_seq_length,
-        dtype=torch.bfloat16,
+        dtype=DTYPE,
         load_in_4bit=load_in_4bit,
         **kwargs
     )
@@ -161,7 +162,7 @@ class UnslothLanguageModel:
     
     # Use autocast to ensure operations are performed in bfloat16
     with torch.no_grad():
-        with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+        with torch.amp.autocast("cuda", dtype=DTYPE):
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
@@ -210,7 +211,7 @@ class UnslothLanguageModel:
             # Use autocast to ensure operations are performed in bfloat16
             # This is specifically needed for models like Gemma-3 where the unsloth compiler 
             # might have internal float32/bfloat16 mismatches in the forward pass.
-            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
+            with torch.amp.autocast("cuda", dtype=DTYPE):
                 outputs = self.model(**inputs)
             logits = outputs.logits # (1, seq_len, vocab_size)
             
