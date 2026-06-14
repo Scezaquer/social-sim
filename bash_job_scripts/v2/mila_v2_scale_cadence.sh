@@ -13,9 +13,9 @@
 # agent between surveys is constant across scales. Tests whether V1's
 # OSR-vs-scale trend was a cadence artifact.
 
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
+# export HF_HUB_OFFLINE=1
+# export TRANSFORMERS_OFFLINE=1
+# export HF_DATASETS_OFFLINE=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "$SCRIPT_DIR/v2_run_common.sh" && -n "${SLURM_SUBMIT_DIR:-}" ]]; then

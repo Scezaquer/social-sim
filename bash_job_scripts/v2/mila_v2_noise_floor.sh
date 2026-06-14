@@ -15,9 +15,9 @@
 #   export SCRAMBLED_CORPUS="$PWD/simulation_threads_<jobid>_<arrayid>.json"
 #   sbatch bash_job_scripts/v2/mila_v2_noise_floor.sh
 
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
+# export HF_HUB_OFFLINE=1
+# export TRANSFORMERS_OFFLINE=1
+# export HF_DATASETS_OFFLINE=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "$SCRIPT_DIR/v2_run_common.sh" && -n "${SLURM_SUBMIT_DIR:-}" ]]; then
