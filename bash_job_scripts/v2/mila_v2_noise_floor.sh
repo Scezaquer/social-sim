@@ -3,7 +3,7 @@
 #SBATCH --array=0-95
 #SBATCH --time=6:00:00
 #SBATCH --mem=24Gb
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:RTX8000:1
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=long
 
@@ -16,5 +16,11 @@
 #   sbatch bash_job_scripts/v2/mila_v2_noise_floor.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/v2_run_common.sh" && -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+	found="$(find "$SLURM_SUBMIT_DIR" -maxdepth 4 -type f -name 'v2_run_common.sh' -print -quit 2>/dev/null || true)"
+	if [[ -n "$found" ]]; then
+		SCRIPT_DIR="$(dirname "$found")"
+	fi
+fi
 DESIGN_CSV="$SCRIPT_DIR/designs/e4_noise_floor.csv"
 source "$SCRIPT_DIR/v2_run_common.sh"
