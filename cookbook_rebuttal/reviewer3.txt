@@ -1,0 +1,37 @@
+Summary:
+This paper studies the design space of LLM-based social simulations through 595 rollouts spanning multiple parameters, including base model, network topology, homophily, survey-context exposure, news-agent presence, and persona proportions. Rather than proposing a new simulator for realism, the paper aims to characterize which design decisions matter most and how parameters interact. The main finding is that base model choice dominates outcomes, while some variables behave additively and others show model-dependent interactions.
+Reasons To Accept:
+The paper asks an important meta-scientific question for the field: which simulation design choices materially affect outcomes, and how predictable are those effects.
+The large multi-parameter sweep is useful and timely, especially given the current lack of methodological standards in LLM-based social simulation.
+The analysis surfaces practically valuable findings, particularly that base model choice is the strongest driver and that social-media fine-tuning changes both style and opinion dynamics.
+Reasons To Reject:
+Because the paper builds its own simulator, the conclusions are partially entangled with that simulator’s assumptions, which limits how far the findings can be generalized to other social simulation frameworks.
+The study has only weak external validation; it characterizes the design space of these simulations, but does not strongly establish which regions of that space are actually more human-like.
+Some of the reported effects depend on many pairwise tests and partially randomized settings, and although the paper is cautious, the statistical story still feels broader than the empirical grounding fully supports.
+Rating: 5: Marginally below acceptance threshold
+Confidence: 5: The reviewer is absolutely certain that the evaluation is correct and very familiar with the relevant literature
+Ethics Flag: No
+
+Comment: We thank the reviewer for the precise summary, and for recognizing the importance of the meta-scientific question, the timeliness of the multi-parameter sweep, and the practical value of the findings on model dominance and fine-tuning effects. We address each stated weakness below.
+
+W1. Conclusions partially entangled with our simulator's assumptions.
+This is a fair concern, and we will address it explicitly in the revision. The simulator follows a conventional design used by prior published systems (agent, followership-graph, post, reply structure, with LLM-based agents acting on observation histories), and two of the headline findings are largely simulator-agnostic in principle: (i) the dominance of base-model identity, and (ii) the partial non-additivity of design-axis interactions. Both would reproduce on any platform exposing the same axes. Other findings (e.g., the strength of survey-context exposure, news-agent placement) plausibly depend on simulator-specific mechanics, and we will mark these as such.
+
+To partially externalize the comparison, we will note that several of the qualitative findings align with reports from independently implemented simulators (e.g., OASIS, AgentSociety, SandboxSocial), suggesting these patterns are not idiosyncratic to our implementation. We will further scope the simulator-dependent claims and softly flag each finding for whether it is expected to generalize across simulators or to be implementation-tied.
+
+W2. Weak external validation.
+We agree. No large-scale matched human-trajectory dataset currently exists that would permit strong external realism validation at the granularity required, and the field has not yet converged on operational realism benchmarks (Larooij and Tornberg, 2025; Zhou et al., 2025). The intended contribution of the paper is the characterization of the design space, not the identification of which region of that design space is most human-like. We will revise to make this scope distinction unambiguous: realism-related language will be confined to the stylistic-classifier results, and everything else will be framed as internal-sensitivity findings. We openly mark this as an outstanding problem for the field rather than a contribution this paper claims to make.
+
+W3. Some effects depend on many pairwise tests and unbalanced settings.
+We will tighten the statistical presentation along three lines:
+
+Report Benjamini-Hochberg FDR-corrected q-values alongside raw p-values for all multi-comparison families.
+Replace the single-factor $\eta^2$ underlying the headline "model is the most influential factor" claim with a multi-factor analysis: partial $\eta^2$ from a Type-III ANOVA including the principal main effects and two-way interactions, complemented by a mixed-effects model treating run batches as random effects. This properly partitions variance among correlated design choices (e.g., LoRA on/off vs. model identity).
+Report effect-size confidence intervals where applicable.
+We are confident that the qualitative conclusions (model dominance, partial non-additivity of interactions) will survive this stricter analysis, and we will mark explicitly any individual sub-claim that does not.
+
+Comment: Thank you for the detailed response. I appreciate the authors’ willingness to narrow the realism claims, add a no-stimulus baseline, revise the “opinion dynamics” terminology, and replace the single-factor η² analysis with more appropriate multi-factor and mixed-effects analyses.
+
+These planned changes would improve the paper. However, my main concerns remain only partially addressed in the current submission. The realism evaluation is still largely stylistic, the belief/opinion measurements remain difficult to interpret given prompt sensitivity and lack of persistent agent state, and the “model matters most” claim still needs the proposed corrected analysis.
+
+Overall, I appreciate the constructive rebuttal, but because the key issues remain unresolved in the present version, I will keep my score unchanged.

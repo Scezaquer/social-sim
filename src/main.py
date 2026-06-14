@@ -33,41 +33,61 @@ def _resolve_graph_model(args) -> str:
     return "random" if args.random_graph else "powerlaw_cluster"
 
 
+TARGET_MEAN_DEGREE = 16
+
+
 def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
+    """Builds the followership graph.
+
+    All parameterizable topologies are density-matched to TARGET_MEAN_DEGREE at
+    every population size, so topology is not confounded with graph density.
+    cycle (degree 2) and fully_connected (degree n-1) are intentional structural
+    extremes and are exempt.
+    """
     if num_nodes <= 0:
         raise ValueError("Number of graph nodes must be > 0")
 
     rng = random.Random(seed)
 
     if graph_model == "random":
-        return nx.erdos_renyi_graph(num_nodes, 1/16, seed=seed)
+        p = min(1.0, TARGET_MEAN_DEGREE / max(1, num_nodes - 1))
+        return nx.erdos_renyi_graph(num_nodes, p, seed=seed)
 
     if graph_model == "powerlaw_cluster":
-        m = min(8, max(1, num_nodes - 1))
+        m = min(TARGET_MEAN_DEGREE // 2, max(1, num_nodes - 1))
         return nx.powerlaw_cluster_graph(num_nodes, m, 0.4, seed=seed)
 
     if graph_model == "barabasi_albert":
-        m = min(8, max(1, num_nodes - 1))
+        m = min(TARGET_MEAN_DEGREE // 2, max(1, num_nodes - 1))
         return nx.barabasi_albert_graph(num_nodes, m, seed=seed)
 
     if graph_model == "stochastic_block":
-        # Four near-equal communities with stronger intra-community connectivity.
+        # Four near-equal communities; ~2/3 of each node's expected degree is
+        # intra-community, ~1/3 inter-community, totalling TARGET_MEAN_DEGREE.
         num_blocks = 4 if num_nodes >= 4 else num_nodes
         base = num_nodes // num_blocks
         remainder = num_nodes % num_blocks
         sizes = [base + (1 if i < remainder else 0) for i in range(num_blocks)]
-        probs = [[0.17 if i == j else 0.028 for j in range(num_blocks)] for i in range(num_blocks)]
+        intra_degree = TARGET_MEAN_DEGREE * (2 / 3)
+        inter_degree = TARGET_MEAN_DEGREE * (1 / 3)
+        block_size = max(1, num_nodes / num_blocks)
+        p_in = min(1.0, intra_degree / block_size)
+        p_out = min(1.0, inter_degree / max(1, num_nodes - block_size))
+        probs = [[p_in if i == j else p_out for j in range(num_blocks)] for i in range(num_blocks)]
         return nx.stochastic_block_model(sizes, probs, seed=seed)
 
     if graph_model == "forest_fire":
         # Lightweight undirected forest-fire style graph with ambassador sampling.
+        # Per-node edge cap keeps mean degree ~TARGET_MEAN_DEGREE at every size
+        # (the uncapped process densifies as the graph grows).
         if num_nodes == 1:
             return nx.empty_graph(1)
 
         graph = nx.Graph()
         graph.add_node(0)
-        forward_burn_prob = 0.21
-        max_burn_visits = 4
+        forward_burn_prob = 0.45
+        max_burn_visits = 16
+        new_node_edge_cap = TARGET_MEAN_DEGREE // 2
 
         for new_node in range(1, num_nodes):
             graph.add_node(new_node)
@@ -78,7 +98,7 @@ def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
             visited = {ambassador}
             burn_visits = 0
 
-            while queue and burn_visits < max_burn_visits:
+            while queue and burn_visits < max_burn_visits and graph.degree(new_node) < new_node_edge_cap:
                 current = queue.pop(0)
                 burn_visits += 1
                 neighbors = list(graph.neighbors(current))
@@ -87,6 +107,8 @@ def _build_graph(graph_model: str, num_nodes: int, seed: int) -> nx.Graph:
                 for neighbor in neighbors:
                     if neighbor == new_node:
                         continue
+                    if graph.degree(new_node) >= new_node_edge_cap:
+                        break
                     if rng.random() < forward_burn_prob:
                         graph.add_edge(new_node, neighbor)
                         if neighbor not in visited:
@@ -211,8 +233,43 @@ if __name__ == "__main__":
     parser.add_argument("--visualizer_output", type=str, default=None, help="Path to save visualizer data")
     parser.add_argument("--metrics_output", type=str, default=None, help="Optional path to save echo-chamber and herd-effect metrics")
     parser.add_argument("--base_only", action="store_true", help="Use only the base model for all agents, ignoring any LoRAs")
+    parser.add_argument("--seed", type=int, default=None, help="Global seed (python/numpy/torch). Defaults to array_id if not set.")
+    parser.add_argument("--max_steps", type=int, default=2500, help="Total number of simulation steps.")
+    parser.add_argument("--survey_interval", type=int, default=250, help="Number of steps between surveys.")
+    parser.add_argument(
+        "--survey_order_mode",
+        type=str,
+        choices=["fixed", "both"],
+        default="fixed",
+        help="'both' additionally surveys each agent with the option order flipped in the question text, recording order-consistency and log-prob margins.",
+    )
+    parser.add_argument(
+        "--stimulus_mode",
+        type=str,
+        choices=["normal", "none", "scrambled"],
+        default="normal",
+        help="Measurement-validity baselines: 'none' surveys agents with no interaction; 'scrambled' feeds agents random corpus messages with no social coupling.",
+    )
+    parser.add_argument(
+        "--scrambled_corpus",
+        type=str,
+        default=None,
+        help="Path to a JSON corpus of threads/messages used by --stimulus_mode scrambled.",
+    )
+    parser.add_argument(
+        "--activity_exponent",
+        type=float,
+        default=0.5,
+        help="Zipf exponent of the agent activity distribution (0 = egalitarian, 1 = strongly power-user driven).",
+    )
 
     args = parser.parse_args()
+
+    seed = args.seed if args.seed is not None else args.array_id
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    print(f"Global seed: {seed}")
 
     print("Torch:", torch.__version__)
     print("Transformers:", transformers.__version__)
@@ -374,26 +431,75 @@ if __name__ == "__main__":
 
     print(f"Loaded question: {question}")
 
+    flipped_question = None
+    if args.survey_order_mode == "both":
+        flipped_path = os.path.join(WORKSPACE_ROOT, "flipped_questions.json")
+        with open(flipped_path, 'r') as f:
+            flipped_data = json.load(f)
+        entry = flipped_data.get(str(args.question_number))
+        if entry is None:
+            raise ValueError(
+                f"--survey_order_mode both requires an entry for question {args.question_number} "
+                f"in {flipped_path}"
+            )
+        if entry["question"] != question:
+            raise ValueError(
+                f"flipped_questions.json entry {args.question_number} does not match the loaded "
+                f"question text:\n  loaded:  {question}\n  expected: {entry['question']}"
+            )
+        flipped_question = entry["flipped"]
+        print(f"Loaded order-flipped question variant: {flipped_question}")
+
     survey_config = {
-        'interval': 250,
+        'interval': args.survey_interval,
         'question': question,
-        'options': options
+        'options': options,
+        'flipped_question': flipped_question,
     }
 
     graph_model = _resolve_graph_model(args)
     G = _build_graph(
         graph_model=graph_model,
         num_nodes=NUM_ENTITIES + args.num_news_agents,
-        seed=args.array_id,
+        seed=seed,
     )
-    print(f"Using graph model: {graph_model}")
-    
+    num_graph_nodes = G.number_of_nodes()
+    mean_degree = (2.0 * G.number_of_edges() / num_graph_nodes) if num_graph_nodes else 0.0
+    print(f"Using graph model: {graph_model} (mean degree {mean_degree:.2f})")
+
+    scrambled_corpus = None
+    if args.stimulus_mode == "scrambled":
+        if not args.scrambled_corpus:
+            raise ValueError("--stimulus_mode scrambled requires --scrambled_corpus")
+        corpus_path = args.scrambled_corpus
+        if not os.path.isabs(corpus_path):
+            corpus_path = os.path.join(WORKSPACE_ROOT, corpus_path)
+        with open(corpus_path, 'r') as f:
+            corpus_raw = json.load(f)
+        # Accepts either simulation_threads_*.json ([{id, messages: [...]}]) or a flat message list.
+        scrambled_corpus = []
+        for item in corpus_raw:
+            if isinstance(item, dict) and "messages" in item:
+                scrambled_corpus.extend(
+                    {"role": m.get("role", "user"), "content": m.get("content", "")}
+                    for m in item["messages"] if m.get("content")
+                )
+            elif isinstance(item, dict) and "content" in item:
+                scrambled_corpus.append({"role": item.get("role", "user"), "content": item["content"]})
+        if len(scrambled_corpus) < 10:
+            raise ValueError(f"Scrambled corpus too small ({len(scrambled_corpus)} messages).")
+        print(f"Loaded scrambled corpus with {len(scrambled_corpus)} messages from {corpus_path}")
+
     # sim_engine = OptimizedSimEngine(classifier_path_template=classifier_template)
     sim_engine = SimEngine(
         survey_config=survey_config,
         graph=G,
         homophily=args.homophily,
         model_probabilities=model_probabilities,
+        survey_order_mode=args.survey_order_mode,
+        stimulus_mode=args.stimulus_mode,
+        scrambled_corpus=scrambled_corpus,
+        activity_exponent=args.activity_exponent,
     )
 
     runnable_simulation = SocialMediaSim(
@@ -407,7 +513,7 @@ if __name__ == "__main__":
 
     start = time.perf_counter()
     print(f"Starting at time: {datetime.datetime.now()}")
-    results_log = runnable_simulation.play(max_steps=2500, start_time=args.start_time, duration=effective_duration)
+    results_log = runnable_simulation.play(max_steps=args.max_steps, start_time=args.start_time, duration=effective_duration)
     end = time.perf_counter()
     print(f"Simulation completed in {end - start:.2f} seconds.")
 
@@ -431,6 +537,15 @@ if __name__ == "__main__":
         "add_survey_to_context": args.add_survey_to_context,
         "proportions_option": args.proportions_option,
         "proportions": proportions.tolist(),
+        "seed": seed,
+        "max_steps": args.max_steps,
+        "survey_interval": args.survey_interval,
+        "survey_order_mode": args.survey_order_mode,
+        "stimulus_mode": args.stimulus_mode,
+        "scrambled_corpus": args.scrambled_corpus,
+        "activity_exponent": args.activity_exponent,
+        "base_only": args.base_only,
+        "graph_mean_degree": mean_degree,
     }
 
     print("Resolved run parameters:")

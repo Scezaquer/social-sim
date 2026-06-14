@@ -1,0 +1,45 @@
+Summary:
+The paper studies how different design choices affect LLM-based social simulations. The authors built their own simulator and ran 595 simulations while changing seven things: number of agents, base model, network shape, whether similar agents are placed near each other (homophily), whether agents see their own past survey answers, whether a biased news agent is added, and how 25 LoRA persona adapters are mixed into the population. Their main findings are that the choice of base model matters most, fine-tuning on social media data makes agents sound more human and behave more dynamically, and a single biased news agent has no measurable effect.
+Reasons To Accept:
+The research question is interesting. Instead of changing one variable at a time, the authors vary seven design choices together. This is important because in social simulations, different parts interact. Their finding that some choices add up cleanly while others do not is useful for anyone building these systems.
+The persona setup is sensible. Using 25 LoRA adapters per base model to create different agent personalities is a smart middle ground. It avoids the stereotypes you get from simple demographic prompts ("you are a 45-year-old white man") while staying cheaper than training many full models.
+The test setup is solid. Instead of changing one variable at a time, the authors vary seven design choices together. This is important because in social simulations, different parts interact. Their finding that some choices add up cleanly while others do not is useful for anyone building these systems.
+Reasons To Reject:
+The realism measure is weak. The main "realism" test is a BERT classifier that decides if text looks AI-generated. But sounding human and behaving like a human society are not the same thing. A model can write convincingly while producing unrealistic group dynamics, or vice versa.
+Not sure about how to interpret the belief measurements. LLM survey answers change a lot depending on word order, phrasing, and context. The authors themselves show that just flipping the order of "Trump or Harris" to "Harris or Trump" changes the answer distribution dramatically. So when they measure "opinion change," some of it may just be survey noise rather than real belief change.
+The paper says "model matters most" using a single-factor analysis (η²) on an unbalanced dataset where some conditions have many more runs than others. With this method, the "model" variable can absorb variance that really belongs to other correlated choices (like LoRA vs. no-LoRA). A proper multi-factor analysis (partial η² or a mixed-effects model) is needed to support the headline claim.
+Not sure about the real belief model of the agent in this scenario. Agents do not have explicit memory, persuasion mechanisms, or stable preferences. "Opinion" is just whatever they answer when surveyed. So when their answer changes, we cannot tell if this is real persuasion, sensitivity to recent posts, random sampling, or option-order bias.
+Questions To Authors:
+Did you test the BERT classifier on text from a simulator other than your own? If not, how do you know it generalises beyond your specific setup?
+Why not also use an off-the-shelf AI-detection tool to cross-check the BERT result?
+Have you considered comparing simulated trajectories against real social media traces (cascade depth, reply patterns, posting bursts)?
+Do agents have any persistent state beyond their context window and LoRA weights? If not, can you really call their behaviour "opinion dynamics" rather than "context-driven response variation"?
+Rating: 4: Ok but not good enough - rejection
+Confidence: 3: The reviewer is fairly confident that the evaluation is correct
+Ethics Flag: No
+
+Comment: We thank the reviewer for their thorough review, and for recognizing the importance of the multi-parameter design, the sensible LoRA-adapter persona setup, and the solidity of the experimental scaffolding. Several of the weaknesses identify limitations we acknowledge and will address head-on, and the questions point to concrete experiments we will run for the revision.
+
+W1. Stylistic realism is not the same as behavioural or societal realism.
+We agree, and will revise accordingly such that realism-related claims will be confined to stylistic realism, and behavioural and structural metrics will be framed as characterizations of internal simulator dynamics rather than evidence of human-likeness. The reason we adopted the stylistic-realism metric is that it is the only realism signal we can ground in human reference data; we will state that plainly. Strong behavioural-realism validation requires matched human social-media trajectories under comparable conditions, which the field does not yet have at this scale, and this is an open problem we acknowledge.
+
+W2. Survey-response sensitivity (e.g., Trump/Harris order effect) may confound "opinion change".
+We acknowledge that the "opinion change" metric may contain survey noise. We will (i) add an explicit caveat to all opinion-dynamics interpretations, (ii) report a no-stimulus baseline that quantifies how much drift occurs simply from re-prompting an isolated agent multiple times, so that simulation-induced drift can be compared against this noise floor, and (iii) reframe the corresponding metrics as a mixture of true response change and response-level variability. Both are scientifically informative properties of the simulator, but should not be conflated, and the revision will keep them distinct.
+
+W3. "model matters most" may absorb variance from correlated choices.
+This is a fair methodological point and we appreciate the specificity. In the revision we will replace the single-factor $\eta^2$ ranking with a multi-factor analysis: partial $\eta^2$ from a Type-III ANOVA including all principal main effects and two-way interactions, complemented by a mixed-effects model treating run batch as a random effect. This properly partitions variance among correlated design choices (such as LoRA vs. no-LoRA, which is partially nested under model). We expect the qualitative conclusion that model identity is the single largest driver to survive, but we will report the corrected magnitudes and explicitly flag any sub-claim that does not.
+
+W4. Agents have no explicit memory or persuasion mechanism
+The reviewer is correct: agents in the simulator have no persistent state beyond their conversation context and LoRA weights. We will rename "opinion dynamics" to a more precise term, likely "survey-response dynamics" or "context-driven response dynamics", to avoid suggesting belief-level persistence we do not measure. We retain the framing that these dynamics remain scientifically informative (they capture how stimuli, context, and structure propagate through an LLM population) but will not present them as genuine persuasion or belief revision. This terminological caveat is itself a finding: if memory- and persuasion-free agents already produce structured, topology-sensitive, model-sensitive response dynamics, that informs what mechanisms future simulators must add before they can credibly claim "real" opinion dynamics.
+
+Q1. Has the BERT classifier been tested on text from a different simulator?
+Not in the current submission. For the revision, we will evaluate the trained classifier on text from a different LLM-based social simulator using OASIS-style rollouts and report cross-simulator accuracy. We will also test it on held-out human BlueSky text outside the training distribution to quantify in-domain bias.
+
+Q2. Cross-check the BERT result with an off-the-shelf AI-detection tool.
+We will add this analysis. On a held-out sample, we will report agreement between our BERT classifier and off-the-shelf detectors, including GPTZero and Originality.AI, and flag any qualitative disagreements.
+
+Q3. Comparison against real social-media traces
+We agree that this would provide the strongest realism evidence, but the available data do not permit it. To comply with privacy and data-protection requirements, the dataset aggregates user behaviour into anonymized archetypes; individual cascade traces, reply trees, and posting-burst timings are not retained at the required granularity. This is also why our current assessment is restricted to stylistic realism via BERT. We will state this constraint explicitly in the limitations section and identify behavioural-trace comparison as a broader field-level challenge, likely requiring partnerships with platform data providers.
+
+Q4. Do agents have any persistent state beyond context and LoRA weights?
+No, they do not. We will revise the terminology and framing accordingly to reflect this honestly, as described in W4.

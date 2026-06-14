@@ -24,8 +24,18 @@ class SimEngine:
                  survey_config: dict[str, Any] = None,
                  homophily: bool = False,
                  model_probabilities: list[dict[str, float]] | dict[str, dict[str, float]] | None = None,
+                 survey_order_mode: str = "fixed",
+                 stimulus_mode: str = "normal",
+                 scrambled_corpus: list[dict[str, str]] | None = None,
+                 activity_exponent: float = 0.5,
                  ):
         self._threads = [] if threads is None else threads
+        self._survey_order_mode = survey_order_mode
+        self._stimulus_mode = stimulus_mode
+        self._scrambled_corpus = scrambled_corpus or []
+        self._activity_exponent = activity_exponent
+        if stimulus_mode == "scrambled" and not self._scrambled_corpus:
+            raise ValueError("stimulus_mode='scrambled' requires a non-empty scrambled corpus.")
         self._entity_activity_probs = None
         self._social_graph = None
         self._acting_entities = None
@@ -166,9 +176,9 @@ class SimEngine:
         # Identify NewsSource
         news_source_indices = [i for i, e in enumerate(entities) if isinstance(e, NewsSource)]
 
-        # Power-law activity distribution
+        # Power-law activity distribution; exponent 0 = egalitarian, higher = stronger power users
         ranks = np.arange(1, n_entities + 1)
-        activity_weights = 1.0 / (ranks ** 0.5) # Zipf's law
+        activity_weights = 1.0 / (ranks ** self._activity_exponent) # Zipf's law
         activity_weights /= activity_weights.sum()
         
         # Assign highest weights to NewsSource
@@ -278,6 +288,18 @@ class SimEngine:
                 })
 
         self._homophily_metrics = self._compute_homophily_metrics(entities)
+
+    def _make_scrambled_thread(self) -> Thread:
+        """Builds a private thread of randomly sampled corpus messages.
+
+        Used by stimulus_mode='scrambled': context changes, but carries no social
+        signal from the simulation. The thread is never added to self._threads.
+        """
+        k = int(np.random.randint(2, 9))
+        k = min(k, len(self._scrambled_corpus))
+        picks = np.random.choice(len(self._scrambled_corpus), size=k, replace=False)
+        content = [dict(self._scrambled_corpus[int(i)]) for i in picks]
+        return Thread(id=-1, content=content)
 
     def make_observation(
         self,
@@ -470,37 +492,65 @@ class SimEngine:
                 if self._survey_config and steps % self._survey_config['interval'] == 0:
                     question = self._survey_config['question']
                     options = self._survey_config['options']
+                    flipped_question = self._survey_config.get('flipped_question')
                     results = {}
+                    details = {}
                     print(f"\n--- Running Survey at Step {steps} ---")
                     for entity in tqdm(entities, desc="Surveying Entities", leave=False):
                         if isinstance(entity, User):
-                            response = entity.survey_response(question, options)
-                            results[entity.name] = response
-                    
-                    self._survey_results.append({
+                            response = entity.survey_response(
+                                question,
+                                options,
+                                order_mode=self._survey_order_mode,
+                                flipped_question=flipped_question,
+                            )
+                            results[entity.name] = response['choice']
+                            details[entity.name] = response
+
+                    survey_record = {
                         'step': steps,
                         'question': question,
-                        'results': results
-                    })
-                    self._visualizer_data["survey_results"].append({
-                        'step': steps,
-                        'question': question,
-                        'results': results
-                    })
+                        'results': results,
+                        'details': details,
+                    }
+                    self._survey_results.append(survey_record)
+                    self._visualizer_data["survey_results"].append(survey_record)
                     print(f"--- Survey Completed ---\n")
                     if steps == max_steps:
                         break
+
+                if self._stimulus_mode == "none":
+                    # Measurement-validity baseline: surveys on the same cadence, no interaction.
+                    steps += 1
+                    pbar.update(1)
+                    continue
+
+                if self._stimulus_mode == "scrambled":
+                    # Measurement-validity baseline: socially meaningless context. The agent
+                    # observes random corpus messages and acts into a private thread, so no
+                    # information flows between agents.
+                    acting_entity = self.next_acting(game_master, entities)
+                    if not isinstance(acting_entity, NewsSource):
+                        scrambled_thread = self._make_scrambled_thread()
+                        acting_entity.observe(scrambled_thread)
+                        action = acting_entity.act()
+                        scrambled_thread.content.append(
+                            {'role': acting_entity.name, 'content': action, 'step': steps}
+                        )
+                    steps += 1
+                    pbar.update(1)
+                    continue
 
                 # 10 observations for every action
                 for i in range(10):
                     acting_entity = self.next_acting(
                         game_master, entities)
-                    
+
                     make_new_thread = ( i == 9 )  # Only create new thread on the last observation
                     observation = self.make_observation(game_master, acting_entity, make_new_thread, step=steps)
                 action = acting_entity.act()
                 observation.content.append({'role': acting_entity.name, 'content': action, 'step': steps})
-                
+
                 if isinstance(acting_entity, NewsSource):
                     self._visualizer_data["news_posts"].append({
                         "step": steps,

@@ -6,3 +6,7 @@ names==0.3.0
 networkx==3.4.2
 datasets==4.3.0
 tqdm==4.67.1
+pandas>=2.0
+scipy>=1.11
+statsmodels>=0.14
+scikit-learn>=1.3

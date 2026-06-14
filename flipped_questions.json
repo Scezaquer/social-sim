@@ -1,0 +1,14 @@
+{
+  "25": {
+    "question": "Is it acceptable to use genetic engineering to enhance human intelligence? You may only answer with 'Yes' or 'No'.",
+    "flipped": "Is it acceptable to use genetic engineering to enhance human intelligence? You may only answer with 'No' or 'Yes'."
+  },
+  "28": {
+    "question": "Should it be legal to use copyrighted material to train artificial intelligence models? You may only answer with 'Yes' or 'No'.",
+    "flipped": "Should it be legal to use copyrighted material to train artificial intelligence models? You may only answer with 'No' or 'Yes'."
+  },
+  "29": {
+    "question": "Would you rather vote for a candidate who prioritizes economic growth over environmental protection, or a candidate who prioritizes environmental protection over economic growth? You may only answer with 'Economic Growth' or 'Environmental Protection'.",
+    "flipped": "Would you rather vote for a candidate who prioritizes environmental protection over economic growth, or a candidate who prioritizes economic growth over environmental protection? You may only answer with 'Environmental Protection' or 'Economic Growth'."
+  }
+}

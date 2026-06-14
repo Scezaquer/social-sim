@@ -243,12 +243,6 @@ class UnslothLanguageModel:
             
     best_idx = int(max(range(len(logprobs)), key=lambda i: logprobs[i]))
 
-    if self._measurements is not None:
-        self._measurements.publish_datum(
-            self._channel,
-            {'choice_method': 'logprobs', 'num_choices': len(responses)},
-        )
-    
     debug_info = {
         'logprobs': {response: logprobs[i]
                      for i, response in enumerate(responses)},

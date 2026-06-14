@@ -142,12 +142,11 @@ class User(Entity):
         """Returns debugging information in the form of a dictionary."""
         return self._logs
 
-    def survey_response(self, question: str, options: Sequence[str]) -> str:
-        """Returns the entity's response to a survey question."""
+    def _build_survey_prompt(self, question: str) -> str:
         temp_context = list(self._context)
         if len(temp_context) > self._max_messages:
             temp_context = temp_context[-self._max_messages:]
-        
+
         temp_context.append({"role": "user", "content": question})
         if self._system_prompt:
             temp_context = [{"role": "system", "content": self._system_prompt}] + temp_context
@@ -162,9 +161,54 @@ class User(Entity):
                 temp_context = [temp_context[-1]]
             else:
                 break
+        return prompt
 
-        idx, choice, _ = self._model.sample_choice(prompt=prompt, responses=options)
+    @staticmethod
+    def _choice_margin(logprobs: dict[str, float], choice: str) -> float:
+        others = [lp for option, lp in logprobs.items() if option != choice]
+        if not others:
+            return 0.0
+        return float(logprobs[choice] - max(others))
+
+    def survey_response(
+        self,
+        question: str,
+        options: Sequence[str],
+        order_mode: str = "fixed",
+        flipped_question: str | None = None,
+    ) -> dict[str, Any]:
+        """Returns the entity's response to a survey question.
+
+        With order_mode="both" and a flipped_question (the same question with
+        the option order reversed throughout its text, loaded from
+        flipped_questions.json), the agent is surveyed with both phrasings so
+        option-order sensitivity is measured at every survey. The canonical
+        answer remains the primary response; the flipped answer and log-prob
+        margins are diagnostics.
+        """
+        prompt = self._build_survey_prompt(question)
+        _, choice, info = self._model.sample_choice(prompt=prompt, responses=options)
+        logprobs = info.get("logprobs", {})
+        response: dict[str, Any] = {
+            "choice": choice,
+            "margin": self._choice_margin(logprobs, choice) if logprobs else None,
+        }
+
+        if order_mode == "both":
+            if flipped_question is not None:
+                flipped_prompt = self._build_survey_prompt(flipped_question)
+                _, flipped_choice, flipped_info = self._model.sample_choice(
+                    prompt=flipped_prompt, responses=options
+                )
+                flipped_logprobs = flipped_info.get("logprobs", {})
+                response["choice_flipped"] = flipped_choice
+                response["margin_flipped"] = (
+                    self._choice_margin(flipped_logprobs, flipped_choice)
+                    if flipped_logprobs else None
+                )
+                response["order_consistent"] = (flipped_choice == choice)
+
         if self._add_survey_to_context:
             self._context.append({"role": "user", "content": question})
             self._context.append({"role": "assistant", "content": choice})
-        return choice
+        return response
