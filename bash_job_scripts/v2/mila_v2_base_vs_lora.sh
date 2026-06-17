@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=V2BaseLora
 #SBATCH --array=0-143
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mem=24Gb
-#SBATCH --gres=gpu:RTX8000:1
+#SBATCH --gres=gpu:rtx8000:1
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=long
 
