@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=V2Core
-#SBATCH --array=0-575
-#SBATCH --time=24:00:00
+#SBATCH --array=101, 144, 156, 169, 176, 208, 221, 259, 260, 283, 298, 305, 356, 369, 371, 400, 430, 439, 451, 457, 473, 488, 491, 574
+#SBATCH --time=48:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:rtx8000:1
 #SBATCH --cpus-per-task=1

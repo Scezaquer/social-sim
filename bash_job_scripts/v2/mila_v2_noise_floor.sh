@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=V2Noise
-#SBATCH --array=0-95
-#SBATCH --time=24:00:00
+#SBATCH --array=0, 1, 3, 4, 5, 6, 7, 12, 13, 20, 21, 24, 26, 32, 33, 34, 35, 37, 39, 43, 46, 47, 49, 50, 51, 53, 55, 56, 58, 63, 65, 67, 68, 70, 72, 76, 78, 79, 81, 83, 85, 86, 87, 88, 91, 92, 93, 94
+#SBATCH --time=48:00:00
 #SBATCH --mem=24Gb
 #SBATCH --gres=gpu:rtx8000:1
 #SBATCH --cpus-per-task=1
