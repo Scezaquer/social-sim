@@ -24,7 +24,10 @@ RUN_TIMEOUT="${RUN_TIMEOUT:-9000}"   # seconds per simulation run
 row=$(awk -v n=$((TASK + 2)) 'NR == n' "$DESIGN/jobs.csv" | tr -d '\r')
 [[ -z "$row" ]] && { echo "no job row $TASK in $DESIGN/jobs.csv"; exit 1; }
 IFS=, read -r JOB_INDEX SIM FAM Q SEED RUNS <<< "$row"
-source crosssim/slurm/models.sh "$FAM"
+source crosssim/slurm/models.sh "$FAM" || {
+  echo "FATAL: model family '$FAM' in $DESIGN/jobs.csv is not defined in crosssim/slurm/models.sh."
+  echo "The design is probably stale (generated before a code change). Regenerate it with crosssim/prep.py design (see crosssim/README.md)."
+  exit 1; }
 echo "== job $JOB_INDEX: sim=$SIM family=$FAM q=$Q seed=$SEED host=$(hostname)"
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 

@@ -56,6 +56,14 @@ Re-submitting the same array resumes: finished runs (`DONE` marker) are skipped.
 
 ### If something fails
 
+* `unknown family` / `HF_MODEL: unbound variable`: the design was generated before a code change.
+  Regenerate both designs (finished runs keep their `DONE` markers and are skipped):
+  ```bash
+  source crosssim/slurm/env.sh
+  $ENVS/tools/bin/python crosssim/prep.py design --out $CROSSSIM_SMOKE --smoke --n_agents 16 --rounds 2 --survey_every 1 --seeds 1 --questions 29
+  $ENVS/tools/bin/python crosssim/prep.py design --out $CROSSSIM_OUT
+  ```
+
 * vLLM does not start: `job.sh` retries with `VLLM_ATTENTION_BACKEND=TRITON_ATTN` and then
   `FLEX_ATTENTION` (both with `--enforce-eager`); logs in `$DESIGN/server_logs/`. Another
   version: `VLLM_VERSION=0.10.2 bash crosssim/slurm/setup_mila.sh` (re-creates nothing else).
