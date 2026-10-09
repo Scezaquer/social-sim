@@ -13,7 +13,7 @@ out-of-band dual-order log-prob survey identical in form to the paper's
 
 ## Design (`prep.py`)
 
-24 jobs = 3 simulators x 2 models (Qwen2.5-7B-Instruct, Llama-3.1-8B) x 2 questions
+24 jobs = 3 simulators x 2 models (Qwen2.5-7B-Instruct, Llama-3.1-Minitaur-8B) x 2 questions
 (Q28 AI-copyright, Q29 growth-vs-environment) x 2 seeds. Each job runs 8 simulations,
 most important first:
 

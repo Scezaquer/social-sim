@@ -1,0 +1,14 @@
+% PLACEHOLDER: replaced by crosssim/results/table_xsim_summary.tex (crosssim/slurm/collect.sh copies it here)
+\begin{tabular}{lrrrrrrr}
+\toprule
+ & \multicolumn{3}{c}{Fine-tuning (OSR)} & Scrambled & Order & Flip rate & NASR \\
+\cmidrule(lr){2-4}
+Simulator & $\eta^2_p$ & $\Delta$ Minitaur & $\Delta$ Qwen & floor share & consist. & low$\to$high margin & real$-$null (\% sig.) \\
+\midrule
+Ours (V2, $N{=}256$) & 0.75 & $+$ & $-$ & -- & 0.37--0.87 & 0.32$\to$0.06 & $-0.001$ (6.5) \\
+\midrule
+OASIS & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} \\
+Concordia & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} \\
+SiliSocS & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} & \xs{--} \\
+\bottomrule
+\end{tabular}

@@ -27,7 +27,7 @@ REPO = Path(os.environ.get("CROSSSIM_REPO", str(HERE.parent))).resolve()
 DATA = HERE / "data"
 
 SIMULATORS = ["oasis", "concordia", "silisocs"]
-FAMILIES = ["qwen", "llama3.1"]
+FAMILIES = ["qwen", "minitaur"]
 QUESTIONS = [28, 29]
 SEEDS = [1, 2]
 NUM_LORAS = 25

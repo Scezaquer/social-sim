@@ -3,8 +3,8 @@ case "$1" in
   qwen)
     HF_MODEL="Qwen/Qwen2.5-7B-Instruct"; LORA_DIR="$SCRATCH/Qwen"
     lora_path() { echo "$LORA_DIR/Qwen2.5-7B-Instruct-lora-finetuned-$1-no-focal"; } ;;
-  llama3.1)
-    HF_MODEL="meta-llama/Llama-3.1-8B"; LORA_DIR="$SCRATCH/meta-llama"
-    lora_path() { echo "$LORA_DIR/Llama-3.1-8B-lora-finetuned-unsloth-$1"; } ;;
+  minitaur)
+    HF_MODEL="marcelbinz/Llama-3.1-Minitaur-8B"; LORA_DIR="$SCRATCH/marcelbinz"
+    lora_path() { echo "$LORA_DIR/Llama-3.1-Minitaur-8B-lora-finetuned-unsloth-$1"; } ;;
   *) echo "unknown family $1" >&2; return 1 ;;
 esac

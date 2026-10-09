@@ -18,7 +18,7 @@ assignment), the follow graph, the topic seed, the scrambled corpus, the schedul
 |---|---|---|
 | run_id | str | unique id |
 | simulator | "oasis" \| "concordia" \| "silisocs" | |
-| model_family | "llama3.1" \| "qwen" | |
+| model_family | "minitaur" \| "qwen" | |
 | finetuned | bool | BluePrint LoRA arm or base arm |
 | base_url | str | vLLM OpenAI-compatible URL, e.g. `http://127.0.0.1:8000/v1` |
 | agent_models | list[str], len N | served model name per agent (`base` or `lora{k}`) |

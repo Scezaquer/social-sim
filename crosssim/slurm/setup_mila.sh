@@ -44,7 +44,7 @@ echo "[setup] personas + designs"
 "$ENVS/tools/bin/python" crosssim/prep.py design --out "$CROSSSIM_OUT"
 
 # Check that base models and all LoRAs are where job.sh expects them.
-for fam in qwen llama3.1; do
+for fam in qwen minitaur; do
   source crosssim/slurm/models.sh "$fam"
   ls "$HF_HUB_CACHE" | grep -q "models--${HF_MODEL//\//--}" && echo "[setup] $HF_MODEL in HF cache" || echo "[setup] WARNING: $HF_MODEL not found in $HF_HUB_CACHE"
   missing=0; for i in $(seq 0 24); do [[ -f "$(lora_path $i)/adapter_config.json" ]] || missing=$((missing+1)); done
