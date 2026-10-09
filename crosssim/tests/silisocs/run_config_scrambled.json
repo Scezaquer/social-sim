@@ -1,0 +1,196 @@
+{
+ "run_id": "test_silisocs_scrambled",
+ "simulator": "silisocs",
+ "model_family": "llama3.1",
+ "finetuned": true,
+ "base_url": "http://127.0.0.1:18432/v1",
+ "agent_models": [
+  "base",
+  "lora0",
+  "lora1",
+  "base",
+  "lora0",
+  "lora1",
+  "base",
+  "broken"
+ ],
+ "agent_names": [
+  "user_0",
+  "user_1",
+  "user_2",
+  "user_3",
+  "user_4",
+  "user_5",
+  "user_6",
+  "user_7"
+ ],
+ "personas": [
+  "Persona 0: a teacher who cares about local issues.",
+  "Persona 1: a nurse who cares about local issues.",
+  "Persona 2: a student who cares about local issues.",
+  "Persona 3: a retiree who cares about local issues.",
+  "Persona 4: a teacher who cares about local issues.",
+  "Persona 5: a nurse who cares about local issues.",
+  "Persona 6: a student who cares about local issues.",
+  "Persona 7: a retiree who cares about local issues."
+ ],
+ "edges": [
+  [
+   0,
+   1
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   3
+  ],
+  [
+   3,
+   4
+  ],
+  [
+   4,
+   5
+  ],
+  [
+   5,
+   6
+  ],
+  [
+   6,
+   7
+  ],
+  [
+   7,
+   0
+  ],
+  [
+   0,
+   4
+  ]
+ ],
+ "num_agents": 8,
+ "rounds": 3,
+ "active_schedule": [
+  [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  [
+   0,
+   1,
+   6,
+   7,
+   3
+  ]
+ ],
+ "survey_rounds": [
+  0,
+  2,
+  3
+ ],
+ "stimulus": "scrambled",
+ "topic_seed": "The city council is discussing a new public transit plan.",
+ "scrambled_posts": [
+  {
+   "author": "ext_0",
+   "text": "Unrelated post #0 about gardening and recipes."
+  },
+  {
+   "author": "ext_1",
+   "text": "Unrelated post #1 about gardening and recipes."
+  },
+  {
+   "author": "ext_2",
+   "text": "Unrelated post #2 about gardening and recipes."
+  },
+  {
+   "author": "ext_3",
+   "text": "Unrelated post #3 about gardening and recipes."
+  },
+  {
+   "author": "ext_4",
+   "text": "Unrelated post #4 about gardening and recipes."
+  },
+  {
+   "author": "ext_5",
+   "text": "Unrelated post #5 about gardening and recipes."
+  },
+  {
+   "author": "ext_6",
+   "text": "Unrelated post #6 about gardening and recipes."
+  },
+  {
+   "author": "ext_7",
+   "text": "Unrelated post #7 about gardening and recipes."
+  },
+  {
+   "author": "ext_8",
+   "text": "Unrelated post #8 about gardening and recipes."
+  },
+  {
+   "author": "ext_9",
+   "text": "Unrelated post #9 about gardening and recipes."
+  },
+  {
+   "author": "ext_10",
+   "text": "Unrelated post #10 about gardening and recipes."
+  },
+  {
+   "author": "ext_11",
+   "text": "Unrelated post #11 about gardening and recipes."
+  },
+  {
+   "author": "ext_12",
+   "text": "Unrelated post #12 about gardening and recipes."
+  },
+  {
+   "author": "ext_13",
+   "text": "Unrelated post #13 about gardening and recipes."
+  },
+  {
+   "author": "ext_14",
+   "text": "Unrelated post #14 about gardening and recipes."
+  },
+  {
+   "author": "ext_15",
+   "text": "Unrelated post #15 about gardening and recipes."
+  },
+  {
+   "author": "ext_16",
+   "text": "Unrelated post #16 about gardening and recipes."
+  },
+  {
+   "author": "ext_17",
+   "text": "Unrelated post #17 about gardening and recipes."
+  },
+  {
+   "author": "ext_18",
+   "text": "Unrelated post #18 about gardening and recipes."
+  },
+  {
+   "author": "ext_19",
+   "text": "Unrelated post #19 about gardening and recipes."
+  }
+ ],
+ "feed_size": 5,
+ "max_tokens": 160,
+ "temperature": 0.7,
+ "seed": 7,
+ "out_dir": "/home/claude/crosssim/tests/silisocs/out_scrambled"
+}

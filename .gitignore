@@ -216,3 +216,6 @@ unsloth_compiled_cache/
 visualizer_*
 survey*
 marcelbinz
+# cross-simulator experiments
+crosssim/.transfer.tgz
+logs/
