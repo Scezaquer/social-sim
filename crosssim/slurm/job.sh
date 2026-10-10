@@ -64,6 +64,7 @@ r = max(rs) if rs else 16
 print(min(x for x in (8, 16, 32, 64, 128, 256) if x >= r))
 PY
 )
+echo "vLLM env: ${VLLM_ENV:-vllm} ($("$ENVS/${VLLM_ENV:-vllm}/bin/python" -c "import vllm; print(vllm.__version__)" 2>/dev/null))"
 echo "chat template parser=$PARSER max_lora_rank=$MAX_RANK lora0=${LORA_ARGS[0]}"
 
 start_server() {   # $1 = attempt number
@@ -74,7 +75,7 @@ start_server() {   # $1 = attempt number
     *) envs=(VLLM_ATTENTION_BACKEND=FLEX_ATTENTION); extra=(--enforce-eager) ;;
   esac
   [[ "$PARSER" != "none" ]] && extra+=(--enable-auto-tool-choice --tool-call-parser "$PARSER")
-  env "${envs[@]}" "$ENVS/vllm/bin/vllm" serve "$MODEL_PATH" \
+  env "${envs[@]}" "$ENVS/${VLLM_ENV:-vllm}/bin/vllm" serve "$MODEL_PATH" \
     --served-model-name base --dtype half --max-model-len 8192 \
     --gpu-memory-utilization 0.85 --max-num-seqs 64 --max-num-batched-tokens 4096 \
     --enable-lora --max-loras 25 --max-cpu-loras 25 --max-lora-rank "$MAX_RANK" \
