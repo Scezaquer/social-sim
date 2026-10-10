@@ -18,7 +18,6 @@ from collections import Counter
 from pathlib import Path
 
 from safetensors import safe_open
-from safetensors.torch import save_file  # noqa: F401  (only needed for --strip-vocab-modules)
 
 fam, template = sys.argv[1], sys.argv[2]
 strip = "--strip-vocab-modules" in sys.argv
