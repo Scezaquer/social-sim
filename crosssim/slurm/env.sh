@@ -8,3 +8,4 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRATCH/uv-cache}"
 export UV_LINK_MODE=copy   # network FS: avoid hardlink surprises
 export VLLM_VERSION="${VLLM_VERSION:-0.11.0}"
 export PATH="$HOME/.local/bin:$PATH"
+export TRANSFORMERS_VERBOSITY=error   # silences "PyTorch was not found" in the tools env

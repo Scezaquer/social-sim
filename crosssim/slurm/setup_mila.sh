@@ -10,24 +10,32 @@ command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 
 mk() { [[ -x "$ENVS/$1/bin/python" ]] || uv venv -q -p "$2" "$ENVS/$1"; }
-# install <env> <python> <import-check> <packages...>: skipped when the env already passes its check,
-# so re-running setup never touches an env that running jobs may be using.
+# install <env> <python> <check> <packages...>: skipped when the env already passes its check, so
+# re-running setup never touches a healthy env that running jobs may be using. Otherwise installs the
+# (pinned) packages; if the env is still broken (e.g. files missing after an interrupted install),
+# reinstalls everything. NEVER run this while xsim jobs are running.
 install() {
   local env=$1 py=$2 check=$3; shift 3
   if [[ -x "$ENVS/$env/bin/python" ]] && "$ENVS/$env/bin/python" -c "$check" 2>/dev/null; then
     echo "[setup] $env: ok (skipped)"; return; fi
   echo "[setup] $env: installing $*"
-  local re=(); [[ -x "$ENVS/$env/bin/python" ]] && re=(--reinstall)   # repair a broken/partial env
   mk "$env" "$py"
-  uv pip install -q "${re[@]}" -p "$ENVS/$env/bin/python" "$@"
+  uv pip install -q -p "$ENVS/$env/bin/python" "$@"
+  if ! "$ENVS/$env/bin/python" -c "$check" 2>/dev/null; then
+    echo "[setup] $env: still broken, full reinstall"
+    uv pip install -q --reinstall -p "$ENVS/$env/bin/python" "$@"
+  fi
   "$ENVS/$env/bin/python" -c "$check" || { echo "[setup] $env: import check FAILED"; exit 1; }
 }
 
-# integrity check: every file recorded by every installed package must exist (catches half-finished installs)
+# integrity check: every .py file recorded by every installed package must exist (catches half-finished installs)
 INTACT='import importlib.metadata as m, sys; bad=[str(f) for d in m.distributions() for f in (d.files or []) if f.suffix==".py" and not f.locate().exists()]; sys.exit(1 if bad else 0)'
-install vllm 3.12 "import vllm, transformers, uvicorn; $INTACT" "vllm==$VLLM_VERSION"
-install tools 3.12 "import transformers, jinja2, pandas, statsmodels, networkx, datasets, tabulate, huggingface_hub; $INTACT" \
-  "transformers>=4.46" jinja2 numpy pandas scipy statsmodels networkx datasets tabulate huggingface_hub
+# vLLM 0.11 is incompatible with transformers 5.x (TokenizersBackend has no all_special_tokens_extended)
+TF4='import transformers as t; assert t.__version__.startswith("4."), t.__version__'
+TF_PIN="transformers>=4.56,<5"
+install vllm 3.12 "import vllm, uvicorn; $TF4; $INTACT" "vllm==$VLLM_VERSION" "$TF_PIN"
+install tools 3.12 "import jinja2, pandas, statsmodels, networkx, datasets, tabulate, huggingface_hub; $TF4; from transformers import AutoTokenizer; $INTACT" \
+  "$TF_PIN" jinja2 numpy pandas scipy statsmodels networkx datasets tabulate huggingface_hub
 if ! "$ENVS/oasis/bin/python" -c "import oasis" 2>/dev/null; then
   mk oasis 3.11
   uv pip install -q -p "$ENVS/oasis/bin/python" torch --index-url https://download.pytorch.org/whl/cpu
