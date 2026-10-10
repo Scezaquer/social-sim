@@ -219,3 +219,5 @@ marcelbinz
 # cross-simulator experiments
 crosssim/.transfer.tgz
 logs/
+crosssim/.sync.tgz
+!crosssim/survey.py

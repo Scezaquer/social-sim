@@ -56,6 +56,11 @@ Re-submitting the same array resumes: finished runs (`DONE` marker) are skipped.
 
 ### If something fails
 
+* `couldn't connect to 'https://huggingface.co'` / `base model ... not available`: run
+  `bash crosssim/slurm/fetch_models.sh` on a login node; it finds (or downloads) both base models.
+* Python import errors inside an env (missing `.py` files): the env was being (re)installed while a job
+  started. Re-run `bash crosssim/slurm/setup_mila.sh` with no jobs running; it repairs broken envs.
+
 * `unknown family` / `HF_MODEL: unbound variable`: the design was generated before a code change.
   Regenerate both designs (finished runs keep their `DONE` markers and are skipped):
   ```bash

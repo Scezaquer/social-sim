@@ -31,15 +31,24 @@ source crosssim/slurm/models.sh "$FAM" || {
 echo "== job $JOB_INDEX: sim=$SIM family=$FAM q=$Q seed=$SEED host=$(hostname)"
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
 
-TMP="${SLURM_TMPDIR:-/tmp/xsim_$$}"; mkdir -p "$TMP"
+TMP="${SLURM_TMPDIR:-/tmp}/xsim_${SLURM_JOB_ID:-$$}"; mkdir -p "$TMP"
 PORT=$((20000 + ${SLURM_JOB_ID:-$$} % 20000))
 BASE_URL="http://127.0.0.1:$PORT/v1"
-export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OPENAI_API_KEY=EMPTY
+export OPENAI_API_KEY=EMPTY
+
+# Local copy of the base model (searches all HF caches; downloads if missing and online).
+if [[ -n "${XSIM_TOKENIZER:-}" ]]; then MODEL_PATH="$HF_MODEL"; else
+  MODEL_PATH=$("$ENVS/tools/bin/python" crosssim/resolve_model.py "$HF_MODEL" --download) \
+    || { echo "FATAL: base model $HF_MODEL not available (run crosssim/slurm/fetch_models.sh on a login node)"; exit 1; }
+fi
+echo "base model: $HF_MODEL -> $MODEL_PATH"
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 
 # ---------------------------------------------------------------- vLLM server
 TEMPLATE="$TMP/chat_template.jinja"
-TOKENIZER="${XSIM_TOKENIZER:-$HF_MODEL}"   # override only in tests
-PARSER=$("$ENVS/tools/bin/python" crosssim/make_template.py "$TOKENIZER" "$TEMPLATE" | tail -1)
+TOKENIZER="${XSIM_TOKENIZER:-$MODEL_PATH}"   # override only in tests
+PARSER=$("$ENVS/tools/bin/python" crosssim/make_template.py "$TOKENIZER" "$TEMPLATE" "$HF_MODEL" | tail -1)
+[[ -s "$TEMPLATE" && -n "$PARSER" ]] || { echo "FATAL: chat template generation failed"; exit 1; }
 LORA_ARGS=(); MAX_RANK=16
 for i in $(seq 0 24); do
   p=$(lora_path "$i")
@@ -63,7 +72,7 @@ start_server() {   # $1 = attempt number
     *) envs=(VLLM_ATTENTION_BACKEND=FLEX_ATTENTION); extra=(--enforce-eager) ;;
   esac
   [[ "$PARSER" != "none" ]] && extra+=(--enable-auto-tool-choice --tool-call-parser "$PARSER")
-  env "${envs[@]}" "$ENVS/vllm/bin/vllm" serve "$HF_MODEL" \
+  env "${envs[@]}" "$ENVS/vllm/bin/vllm" serve "$MODEL_PATH" \
     --served-model-name base --dtype half --max-model-len 8192 \
     --gpu-memory-utilization 0.90 --max-num-seqs 64 \
     --enable-lora --max-loras 25 --max-cpu-loras 25 --max-lora-rank "$MAX_RANK" \
@@ -133,7 +142,7 @@ PY
   rc=$?
   echo "[$(date +%T)] runner exit=$rc after $(( $(date +%s) - t0 ))s; $(cat "$rdir/run_meta.json" 2>/dev/null | head -c 300)"
   if [[ -s "$rdir/contexts.jsonl" ]]; then
-    ( "$ENVS/tools/bin/python" crosssim/survey.py --run_dir "$rdir" --base_url "$BASE_URL" --hf_model "$TOKENIZER" \
+    ( "$ENVS/tools/bin/python" crosssim/survey.py --run_dir "$rdir" --base_url "$BASE_URL" --hf_model "$TOKENIZER" --model_name "$HF_MODEL" \
         > "$rdir/survey.log" 2>&1 && touch "$rdir/DONE"; tail -1 "$rdir/survey.log" ) &
     SURVEY_PIDS+=($!)
   else

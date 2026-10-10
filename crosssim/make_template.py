@@ -58,17 +58,18 @@ For each function call, return a json object with function name and arguments wi
 
 def main():
     hf_model, out_path = sys.argv[1], sys.argv[2]
+    name = sys.argv[3] if len(sys.argv) > 3 else hf_model  # repo id, for the template rule
     if hf_model == "dummy":  # tests only
         open(out_path, "w").write(CHATML_TOOLS)
         print("hermes")
         return
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(hf_model, local_files_only=True)
-    if tok.chat_template is None or "Qwen" in hf_model or "Minitaur" in hf_model:
+    if tok.chat_template is None or "Qwen" in name or "Minitaur" in name:
         template, parser = CHATML_TOOLS, "hermes"
     else:
         template = tok.chat_template
-        parser = "llama3_json" if "Llama-3" in hf_model or "llama" in hf_model.lower() else "none"
+        parser = "llama3_json" if "llama" in name.lower() else "none"
     with open(out_path, "w") as f:
         f.write(template)
     print(parser)
