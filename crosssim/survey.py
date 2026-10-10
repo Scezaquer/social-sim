@@ -21,6 +21,7 @@ import concurrent.futures as cf
 import json
 import math
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -76,6 +77,10 @@ def post_json(url: str, payload: dict, timeout: float = 180.0, retries: int = 4)
             req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.loads(r.read())
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="replace")[:1000]
+            last = RuntimeError(f"HTTP {exc.code}: {body}")
+            time.sleep(2 * (attempt + 1))
         except Exception as exc:  # noqa: BLE001
             last = exc
             time.sleep(2 * (attempt + 1))
@@ -181,6 +186,9 @@ def main():
            "n_errors": n_err, "wall_seconds": time.time() - t0, "surveys": surveys}
     (run_dir / "surveys.json").write_text(json.dumps(out))
     print(f"[survey] {cfg['run_id']}: {len(rows)} agent-rounds, {n_err} errors, {time.time() - t0:.0f}s")
+    errs = [v["error"] for r in by_round.values() for v in r.values() if "error" in v]
+    if errs:
+        print("[survey] first error:", errs[0][:1500])
     if n_err > 0.2 * max(1, len(rows)):
         raise SystemExit(2)
 

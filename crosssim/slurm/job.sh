@@ -74,7 +74,7 @@ start_server() {   # $1 = attempt number
   [[ "$PARSER" != "none" ]] && extra+=(--enable-auto-tool-choice --tool-call-parser "$PARSER")
   env "${envs[@]}" "$ENVS/vllm/bin/vllm" serve "$MODEL_PATH" \
     --served-model-name base --dtype half --max-model-len 8192 \
-    --gpu-memory-utilization 0.90 --max-num-seqs 64 \
+    --gpu-memory-utilization 0.85 --max-num-seqs 64 --max-num-batched-tokens 4096 \
     --enable-lora --max-loras 25 --max-cpu-loras 25 --max-lora-rank "$MAX_RANK" \
     --lora-modules "${LORA_ARGS[@]}" --chat-template "$TEMPLATE" \
     --max-logprobs 20 --port "$PORT" "${extra[@]}" \
@@ -134,16 +134,23 @@ import json, sys
 p, u = sys.argv[1:]
 c = json.load(open(p)); c["base_url"] = u; json.dump(c, open(p, "w"))
 PY
-  rm -f "$rdir/contexts.jsonl" "$rdir/actions.jsonl"
-  echo "[$(date +%T)] run $run"
-  t0=$(date +%s)
-  ( cd "$rdir" && timeout "$RUN_TIMEOUT" "$ENVS/$SIM/bin/python" "$OLDPWD/crosssim/run_$SIM.py" \
-      --config "$rdir/run_config.json" ${RUNNER_ARGS:-} ) > "$rdir/runner.log" 2>&1
-  rc=$?
-  echo "[$(date +%T)] runner exit=$rc after $(( $(date +%s) - t0 ))s; $(cat "$rdir/run_meta.json" 2>/dev/null | head -c 300)"
+  for attempt in 1 2; do   # one retry: transient import/FS errors on the network filesystem
+    rm -f "$rdir/contexts.jsonl" "$rdir/actions.jsonl"
+    echo "[$(date +%T)] run $run (attempt $attempt)"
+    t0=$(date +%s)
+    ( cd "$rdir" && timeout "$RUN_TIMEOUT" "$ENVS/$SIM/bin/python" "$OLDPWD/crosssim/run_$SIM.py" \
+        --config "$rdir/run_config.json" ${RUNNER_ARGS:-} ) > "$rdir/runner.log" 2>&1
+    rc=$?
+    echo "[$(date +%T)] runner exit=$rc after $(( $(date +%s) - t0 ))s; $(cat "$rdir/run_meta.json" 2>/dev/null | head -c 300)"
+    [[ -s "$rdir/contexts.jsonl" ]] && break
+    ensure_server || break
+  done
   if [[ -s "$rdir/contexts.jsonl" ]]; then
-    ( "$ENVS/tools/bin/python" crosssim/survey.py --run_dir "$rdir" --base_url "$BASE_URL" --hf_model "$TOKENIZER" --model_name "$HF_MODEL" \
-        > "$rdir/survey.log" 2>&1 && touch "$rdir/DONE"; tail -1 "$rdir/survey.log" ) &
+    ( for sa in 1 2; do
+        for _ in $(seq 1 90); do curl -sf "$BASE_URL/models" >/dev/null && break; sleep 10; done   # main loop restarts a dead server
+        "$ENVS/tools/bin/python" crosssim/survey.py --run_dir "$rdir" --base_url "$BASE_URL" --hf_model "$TOKENIZER" \
+            --model_name "$HF_MODEL" --workers "${SURVEY_WORKERS:-12}" > "$rdir/survey.log" 2>&1 && { touch "$rdir/DONE"; break; }
+      done; tail -3 "$rdir/survey.log" ) &
     SURVEY_PIDS+=($!)
   else
     echo "no contexts for $run; tail runner.log:"; tail -20 "$rdir/runner.log"
