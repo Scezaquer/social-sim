@@ -110,8 +110,12 @@ u = sys.argv[1]
 def post(path, body):
     req = urllib.request.Request(u + path, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     return json.loads(urllib.request.urlopen(req, timeout=300).read())
-r = post("/completions", {"model": "lora0", "prompt": "Hello, my name is", "max_tokens": 8, "prompt_logprobs": 1})
-print("[check] completion:", repr(r["choices"][0]["text"]), "prompt_logprobs:", r["choices"][0].get("prompt_logprobs") is not None)
+r = post("/completions", {"model": "lora0", "prompt": "Hello, my name is", "max_tokens": 8})
+print("[check] completion:", repr(r["choices"][0]["text"]))
+# forced-token logprob must come from the raw distribution (strongly negative for an unlikely token)
+r = post("/completions", {"model": "lora0", "prompt": "The capital of France is", "max_tokens": 1, "temperature": 0,
+                          "logprobs": 1, "allowed_token_ids": [12345]})
+print("[check] forced-token logprob (should be << 0):", r["choices"][0]["logprobs"]["token_logprobs"][0])
 tools = [{"type": "function", "function": {"name": "create_post", "description": "Create a post",
           "parameters": {"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]}}}]
 try:

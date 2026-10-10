@@ -37,7 +37,7 @@ ROUNDS = 20
 ACTIVE_FRAC = 0.5
 SURVEY_EVERY = 4
 FEED_SIZE = 5
-MAX_TOKENS = 160
+MAX_TOKENS = 256  # room for a complete tool-call JSON (Minitaur is verbose)
 TEMPERATURE = 0.7
 TARGET_MEAN_DEGREE = 16  # same density target as the paper's simulator
 

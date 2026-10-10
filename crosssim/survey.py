@@ -28,7 +28,8 @@ from pathlib import Path
 CHATML = ("{% for message in messages %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] "
           "+ '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}")
 
-CTX_TOKENS = 1500  # survey conditions on the most recent CTX_TOKENS tokens of agent context
+CTX_TOKENS = 1500
+SCORING = "forced"  # "forced" (default) or "prompt_logprobs"; both give the summed option log-prob  # survey conditions on the most recent CTX_TOKENS tokens of agent context
 SYSTEM = ("You are a user on a social media platform. Answer in character, consistently with the "
           "following persona: {persona}")
 CTX_HEADER = "Here is what you have recently seen and done on the platform:\n"
@@ -110,6 +111,8 @@ class Surveyor:
         return self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
 
     def score_option(self, model: str, prompt: str, option: str) -> float:
+        if SCORING == "forced":
+            return self.score_option_forced(model, prompt, option)
         p_ids = self.ids(prompt)
         f_ids = self.ids(prompt + option)
         n_resp = max(1, len(f_ids) - len(p_ids))
@@ -131,9 +134,30 @@ class Surveyor:
             total += lp["logprob"] if isinstance(lp, dict) else float(lp)
         return total
 
+    def score_option_forced(self, model: str, prompt: str, option: str) -> float:
+        """Same quantity as the prompt_logprobs path (sum of log p(option tokens | prompt)), computed
+        token by token: each option token is forced with allowed_token_ids and its logprob read from
+        the server's raw (pre-processor) distribution. Avoids prompt_logprobs, which crashes vLLM 0.11
+        with the Minitaur LoRA adapters, and benefits from prefix caching."""
+        p_ids = self.ids(prompt)
+        f_ids = self.ids(prompt + option)
+        n_resp = max(1, len(f_ids) - len(p_ids))
+        prefix, resp = f_ids[:-n_resp], f_ids[-n_resp:]
+        total = 0.0
+        for t in resp:
+            res = post_json(self.url, {"model": model, "prompt": prefix, "max_tokens": 1, "temperature": 0.0,
+                                       "logprobs": 1, "allowed_token_ids": [t]})
+            lp = res["choices"][0]["logprobs"]
+            total += float(lp["token_logprobs"][0])
+            prefix = prefix + [t]
+        return total
+
     def ask(self, model, persona, context, question, options):
         prompt = self.build_prompt(persona, context, question)
         lps = {o: self.score_option(model, prompt, o) for o in options}
+        if all(v == 0.0 for v in lps.values()):
+            raise RuntimeError("all option log-probs are exactly 0: the server returns processed (post-mask) "
+                               "logprobs; start vLLM with --logprobs-mode raw_logprobs")
         choice = max(options, key=lambda o: lps[o])
         others = [v for o, v in lps.items() if o != choice]
         margin = lps[choice] - max(others) if others else 0.0
@@ -147,8 +171,11 @@ def main():
     ap.add_argument("--hf_model", required=True, help="HF id used for the tokenizer/chat template, or 'dummy'")
     ap.add_argument("--model_name", default=None, help="HF repo id (for the chat-template rule) if --hf_model is a path")
     ap.add_argument("--workers", type=int, default=48)
+    ap.add_argument("--scoring", choices=["forced", "prompt_logprobs"], default="forced")
     args = ap.parse_args()
 
+    global SCORING
+    SCORING = args.scoring
     run_dir = Path(args.run_dir)
     cfg = json.loads((run_dir / "run_config.json").read_text())
     rows = [json.loads(l) for l in (run_dir / "contexts.jsonl").read_text().splitlines() if l.strip()]
