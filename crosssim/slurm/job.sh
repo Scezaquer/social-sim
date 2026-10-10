@@ -19,7 +19,7 @@ cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")/../..}"
 source crosssim/slurm/env.sh
 DESIGN="${DESIGN:-$CROSSSIM_OUT}"
 TASK="${SLURM_ARRAY_TASK_ID:-0}"
-RUN_TIMEOUT="${RUN_TIMEOUT:-9000}"   # seconds per simulation run
+RUN_TIMEOUT="${RUN_TIMEOUT:-14400}"   # seconds per simulation run
 
 row=$(awk -v n=$((TASK + 2)) 'NR == n' "$DESIGN/jobs.csv" | tr -d '\r')
 [[ -z "$row" ]] && { echo "no job row $TASK in $DESIGN/jobs.csv"; exit 1; }
@@ -76,7 +76,7 @@ start_server() {   # $1 = attempt number
   esac
   [[ "$PARSER" != "none" ]] && extra+=(--enable-auto-tool-choice --tool-call-parser "$PARSER")
   env "${envs[@]}" "$ENVS/${VLLM_ENV:-vllm}/bin/vllm" serve "$MODEL_PATH" \
-    --served-model-name base --dtype half --max-model-len 8192 \
+    --served-model-name base --dtype half --max-model-len 12288 \
     --gpu-memory-utilization 0.85 --max-num-seqs 64 --max-num-batched-tokens 4096 \
     --enable-lora --max-loras 25 --max-cpu-loras 25 --max-lora-rank "$MAX_RANK" \
     --lora-modules "${LORA_ARGS[@]}" --chat-template "$TEMPLATE" \

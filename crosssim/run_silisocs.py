@@ -174,7 +174,7 @@ def main():
         "PYTHONPATH": os.pathsep.join([str(HERE)] + [p for p in [env.get("PYTHONPATH")] if p]),
         "CROSSSIM_RUN_CONFIG": str(hook_cfg),
         # SiliSocS defaults to 50 retries with 5-30 s backoff (looks like a hang).
-        "SIM_LLM_MAX_RETRIES": env.get("SIM_LLM_MAX_RETRIES", "2"),
+        "SIM_LLM_MAX_RETRIES": env.get("SIM_LLM_MAX_RETRIES", "4"),
         "SIM_LLM_BACKOFF_BASE_SECONDS": env.get("SIM_LLM_BACKOFF_BASE_SECONDS", "2"),
         "SIM_LLM_BACKOFF_MAX_SECONDS": env.get("SIM_LLM_BACKOFF_MAX_SECONDS", "10"),
         "HYDRA_FULL_ERROR": "1",

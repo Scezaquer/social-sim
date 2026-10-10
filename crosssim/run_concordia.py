@@ -30,9 +30,10 @@ from concordia.prefabs.entity import basic as basic_prefab
 from concordia.prefabs.entity import minimal as minimal_prefab
 from concordia.typing import entity as entity_lib
 
-TIMEOUT_S = 120.0
+TIMEOUT_S = float(os.environ.get('XSIM_REQUEST_TIMEOUT', '600'))  # v1 used 120 s -> many timeouts
 MAX_RETRIES = 2
-HISTORY = 20
+HISTORY = int(os.environ.get('XSIM_CONCORDIA_HISTORY', '10'))  # v1 used 20 -> context overflow
+POST_CHARS = 400  # cap on each post as stored/observed (keeps prompts < max_model_len)
 CONTEXT_CHARS = 6000
 MAX_WORKERS = 32
 
@@ -189,7 +190,7 @@ def main():
       feed = feed_for(i, r, snapshot)
       if feed:
         obs = f'[round {r}] Your feed: ' + ' | '.join(
-            f'{a}: {t}' for a, t in feed)
+            f'{a}: {t[:POST_CHARS]}' for a, t in feed)
       else:
         obs = f'[round {r}] Your feed is empty.'
       agents[i].observe(obs)
@@ -199,7 +200,7 @@ def main():
         text = text[len(names[i]):].strip()
       text = text.strip().strip('"').strip()
       if text:
-        agents[i].observe(f'[round {r}] You posted: {text}')
+        agents[i].observe(f'[round {r}] You posted: {text[:POST_CHARS]}')
         rec.update(text=text, ok=True)
     except Exception as e:  # pylint: disable=broad-except
       rec['error'] = f'{type(e).__name__}: {e}'[:500]

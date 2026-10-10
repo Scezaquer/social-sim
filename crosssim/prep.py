@@ -184,15 +184,29 @@ def cmd_design(args):
     questions = [int(q) for q in args.questions.split(",")]
     seeds = [int(s) for s in args.seeds.split(",")]
 
+    # Job specs: (sim, fam, q, seed, runs). With --split, each job holds 4 runs: first all
+    # Erdos-Renyi normal/scrambled jobs (seeds --seeds), then the BA/cycle topology jobs
+    # (seeds --topo_seeds), so the most important cells are scheduled first.
+    specs = []
+    if args.split:
+        topo_seeds = [int(s) for s in args.topo_seeds.split(",")]
+        for part, part_seeds in ((run_order[:4], seeds), (run_order[4:], topo_seeds)):
+            for sim in sims:
+                for fam in fams:
+                    for q in questions:
+                        for seed in part_seeds:
+                            if part:
+                                specs.append((sim, fam, q, seed, part))
+    else:
+        specs = [(sim, fam, q, seed, run_order) for sim in sims for fam in fams
+                 for q in questions for seed in seeds]
+
     jobs = []
-    for sim in sims:
-        for fam in fams:
-            for q in questions:
-                for seed in seeds:
+    for sim, fam, q, seed, job_runs in specs:
                     pop = population(seed, personas_all, N_AGENTS, ROUNDS)
                     question, options, flipped = load_questions(q)
                     run_ids = []
-                    for graph, ft, stim in run_order:
+                    for graph, ft, stim in job_runs:
                         run_id = f"{sim}_{fam}_q{q}_s{seed}_{graph}_{'ft' if ft else 'base'}_{stim}"
                         g = build_graph(graph, N_AGENTS, seed)
                         cfg = {
@@ -237,6 +251,8 @@ def main():
     d.add_argument("--n_agents", type=int, default=N_AGENTS)
     d.add_argument("--rounds", type=int, default=ROUNDS)
     d.add_argument("--survey_every", type=int, default=SURVEY_EVERY)
+    d.add_argument("--split", action="store_true", help="4-run jobs: ER jobs (--seeds) first, then topology jobs (--topo_seeds)")
+    d.add_argument("--topo_seeds", default="1,2")
     d.add_argument("--smoke", action="store_true", help="only the first 3 runs per job (ER ft/base normal, ER ft scrambled)")
     args = ap.parse_args()
     {"personas": cmd_personas, "design": cmd_design}[args.cmd](args)

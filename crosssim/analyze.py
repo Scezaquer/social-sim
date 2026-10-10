@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 import random
+import zlib
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -135,7 +136,7 @@ def load_runs(root: Path, n_perm: int):
                "turns": meta.get("n_turns", float("nan")), "failed_turns": meta.get("n_failed_turns", float("nan")),
                "posts": meta.get("n_posts", float("nan")), "wall_s": meta.get("wall_seconds", float("nan"))}
         if cfg["stimulus"] == "normal":
-            row.update(null_test(snaps, adj, n, n_perm, seed=hash(cfg["run_id"]) % 2**31))
+            row.update(null_test(snaps, adj, n, n_perm, seed=zlib.crc32(cfg["run_id"].encode())))
         rows.append(row)
     return pd.DataFrame(rows), pd.DataFrame(flips)
 
@@ -387,7 +388,7 @@ def main():
             if isinstance(eta, dict) and "error" not in eta else float("nan")
         dl = osr.get("delta", {}).get("minitaur", (float("nan"),))[0]
         dq = osr.get("delta", {}).get("qwen", (float("nan"),))[0]
-        fs = c2[c2.simulator == sim]
+        fs = c2[(c2.simulator == sim) & (c2.finetuned)]  # floor share for fine-tuned agents (base agents barely move)
         floor = float((fs.OSR_scrambled.sum() / fs.OSR_normal.sum())) if len(fs) and fs.OSR_normal.sum() > 0 else float("nan")
         ocs = runs[runs.simulator == sim]["order_consistency"]
         oc_txt = f"{ocs.groupby([runs.family, runs.finetuned]).mean().min():.2f}--{ocs.groupby([runs.family, runs.finetuned]).mean().max():.2f}" if len(ocs) else "--"

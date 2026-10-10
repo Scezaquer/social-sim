@@ -23,8 +23,8 @@ import sys
 import time
 import traceback
 
-TIMEOUT_S = 120.0       # per HTTP request
-HTTP_RETRIES = 1        # openai-client retries per request
+TIMEOUT_S = float(os.environ.get('XSIM_REQUEST_TIMEOUT', '600'))  # per HTTP request (v1: 120 s)
+HTTP_RETRIES = 2        # openai-client retries per request
 AGENT_ATTEMPTS = 2      # camel ChatAgent retry_attempts around the model call
 CONTEXT_TOKENS = 4500   # agent memory budget (max_model_len 8192)
 CONTEXT_CHARS = 6000
