@@ -53,6 +53,8 @@ LORA_ARGS=(); MAX_RANK=16
 for i in $(seq 0 24); do
   p=$(lora_path "$i")
   [[ -f "$p/adapter_config.json" ]] || { echo "missing LoRA $p"; exit 1; }
+  fixed="$SCRATCH/crosssim_loras/$FAM/lora$i"     # vLLM-ready copy made by crosssim/fix_loras.py
+  [[ -f "$fixed/adapter_config.json" ]] && p="$fixed"
   LORA_ARGS+=("lora$i=$p")
 done
 MAX_RANK=$("$ENVS/tools/bin/python" - "$LORA_DIR" <<'PY'
@@ -62,7 +64,7 @@ r = max(rs) if rs else 16
 print(min(x for x in (8, 16, 32, 64, 128, 256) if x >= r))
 PY
 )
-echo "chat template parser=$PARSER max_lora_rank=$MAX_RANK"
+echo "chat template parser=$PARSER max_lora_rank=$MAX_RANK lora0=${LORA_ARGS[0]}"
 
 start_server() {   # $1 = attempt number
   local extra=() envs=()
