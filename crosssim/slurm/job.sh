@@ -141,8 +141,12 @@ import json, sys
 p, u = sys.argv[1:]
 c = json.load(open(p)); c["base_url"] = u; json.dump(c, open(p, "w"))
 PY
+  if [[ -s "$rdir/contexts.jsonl" && -s "$rdir/run_meta.json" ]]; then
+    # the simulation finished earlier (run_meta.json is written last) but its survey failed: survey only
+    echo "[$(date +%T)] run $run: simulation already complete, re-running the survey only"
+  else
   for attempt in 1 2; do   # one retry: transient import/FS errors on the network filesystem
-    rm -f "$rdir/contexts.jsonl" "$rdir/actions.jsonl"
+    rm -f "$rdir/contexts.jsonl" "$rdir/actions.jsonl" "$rdir/run_meta.json"
     echo "[$(date +%T)] run $run (attempt $attempt)"
     t0=$(date +%s)
     ( cd "$rdir" && timeout "$RUN_TIMEOUT" "$ENVS/$SIM/bin/python" "$OLDPWD/crosssim/run_$SIM.py" \
@@ -152,6 +156,7 @@ PY
     [[ -s "$rdir/contexts.jsonl" ]] && break
     ensure_server || break
   done
+  fi
   if [[ -s "$rdir/contexts.jsonl" ]]; then
     ( for sa in 1 2; do
         for _ in $(seq 1 90); do curl -sf "$BASE_URL/models" >/dev/null && break; sleep 10; done   # main loop restarts a dead server
